@@ -1,0 +1,21 @@
+# envs
+.venv/
+envs/
+
+# datasets / downloads
+data/
+
+# vault symlink (read-only iCloud Obsidian record; has its own repo)
+notes
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# os / editor
+.DS_Store
+.claude/
+
+# local project instructions (references private sibling projects; keep out of public repo)
+CLAUDE.md
