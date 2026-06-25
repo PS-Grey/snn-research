@@ -127,6 +127,12 @@ def get_data(dataset: str, batch: int):
         tr = datasets.MNIST("./data", train=True, download=True, transform=tf)
         te = datasets.MNIST("./data", train=False, download=True, transform=tf)
         return tr, te, 1, 10, 28
+    elif dataset == "fashion":
+        tf = transforms.Compose([transforms.ToTensor(),
+                                 transforms.Normalize((0.2860,), (0.3530,))])
+        tr = datasets.FashionMNIST("./data", train=True, download=True, transform=tf)
+        te = datasets.FashionMNIST("./data", train=False, download=True, transform=tf)
+        return tr, te, 1, 10, 28
     elif dataset == "cifar10":
         tf_tr = transforms.Compose([
             transforms.RandomCrop(32, padding=4),
@@ -148,7 +154,7 @@ def n_params(m):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dataset", choices=["mnist", "cifar10"], default="mnist")
+    ap.add_argument("--dataset", choices=["mnist", "fashion", "cifar10"], default="mnist")
     ap.add_argument("--epochs", type=int, default=5)
     ap.add_argument("--batch", type=int, default=128)
     ap.add_argument("--lr", type=float, default=2e-3)
