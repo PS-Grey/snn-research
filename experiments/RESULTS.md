@@ -28,6 +28,23 @@ Accuracy is flat across T (90.8–92.4%) while spikes scale ~linearly with T. T=
 ~1,900 spikes/img at 91.6%. The temporal dimension only earns its cost on genuinely temporal
 input (DVS / event vision), which is where higher T should pay off.
 
+## Surrogate-width schedule — fixed vs annealed atan slope (Fashion-MNIST, T=10, 10 epochs)
+
+Script: `surrogate_schedule.py`. Tests the 2024-25 literature claim that scheduling the
+surrogate slope (wide early for gradient flow, sharp late to cut gradient mismatch) improves
+direct training. Identical seed/init/batch order across conditions.
+
+| Condition | Best test | Spikes/img (final) |
+|---|---|---|
+| anneal α 2→16 (linear/epoch) | 92.37% | ~23,400 |
+| fixed α=16 | 92.45% | ~25,900 |
+| fixed α=2 (baseline regime) | **92.67%** | ~24,100 |
+
+All three within 0.30 pp (seed noise); the baseline nominally wins. At 2-conv depth with
+BatchNorm there is no gradient mismatch to repair — gradients reach every layer cleanly, so
+reshaping the surrogate has nothing to fix. **Parked**: surrogate scheduling is a
+depth-scaling tool; revisit when the net is deep enough to show gradient attenuation.
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
