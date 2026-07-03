@@ -46,14 +46,40 @@ band is a flat plateau (flat SNN 89.4% @ scale=1, conv 92.5% @ scale=5) with the
 at the sharp extreme (scale 25→100 → ~77-81%). The atan α 2→16 range sits on that plateau, so
 a null is expected.
 
-Note on width vs tail: atan α=16 is by half-width *sharper* than sigmoid scale=25 yet held
-92.45% where the sigmoid collapsed to ~81% (both with BatchNorm, so BN is not the protective
-factor). Likely mechanism: atan's Lorentzian tails (1/(1+x²)) keep gradient flowing to
-off-threshold neurons under sharpening, where sigmoid's exponential tails starve them.
-Working hypothesis: **tail shape is the load-bearing variable, not nominal width** (untested).
-
 **Parked**: surrogate width is a non-lever within the atan family at this depth; scheduling is
 a depth-scaling tool, revisit when the net is deep enough to show gradient attenuation.
+
+## Surrogate tail shape — tested head-to-head, NOT load-bearing at 2-conv depth
+
+Script: `surrogate_tail.py`. Tests whether the surrogate's *tail* (not its width) is the
+load-bearing variable, motivated by the old sigmoid collapse. atan (Lorentzian tails,
+`1/(1+x²)`) vs true logistic sigmoid (exponential tails), **matched at equal gradient
+half-width** so only the tail differs, then both sharpened. Fashion-MNIST, T=10, 6 epochs,
+seed 0.
+
+| half-width | atan best | sigmoid best | atan tail@0.3 | sig tail@0.3 |
+|---|---|---|---|---|
+| 0.35 (smooth) | 92.17% | 92.27% | 0.58 | 0.59 |
+| 0.10 | 92.23% | 91.92% | 0.10 | 0.02 |
+| 0.05 | 92.09% | 91.66% | 0.027 | 0.0001 |
+| 0.02 (sharp) | 91.66% | 91.35% | 0.0044 | **0.0000** |
+
+**Hypothesis falsified at this depth.** Both families hold ~91–92% across the whole range. At
+hw=0.02 the sigmoid's off-threshold gradient is literally zero (tail@0.3 = 0.0000) and it still
+reaches 91.35%, tracking atan epoch-for-epoch. Starving off-threshold neurons of gradient does
+not cause collapse at 2-conv depth. There is a whisper in the tail direction (sigmoid slips
+from +0.10 to −0.4 behind atan as both sharpen) but it is within the ±0.3 pp seed noise.
+
+Consequence: the old 30-May sigmoid collapse (76–81% at sharp scale, 3-conv net) is
+**unreproduced here** with matched-width surrogates of either tail. Since atan and sigmoid are
+interchangeable at 2 layers, the old collapse was not the surrogate tail — the remaining
+suspect is **depth** (3 conv layers vs 2; gradient must propagate further). Ties back to the
+depth-scaling experiment.
+
+Gotcha found: snnTorch's stock `surrogate.sigmoid` computes its backward with a bare `exp()`
+that overflows to inf→NaN for neurons more than ~20 below threshold — routine in a BN
+conv-SNN — silently pinning training at chance regardless of slope. Use a `torch.sigmoid`-based
+surrogate (as here / the 30-May script). This bug invalidated a first run of this experiment.
 
 ## Reading
 
