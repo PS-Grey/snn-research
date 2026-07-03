@@ -40,10 +40,20 @@ direct training. Identical seed/init/batch order across conditions.
 | fixed α=16 | 92.45% | ~25,900 |
 | fixed α=2 (baseline regime) | **92.67%** | ~24,100 |
 
-All three within 0.30 pp (seed noise); the baseline nominally wins. At 2-conv depth with
-BatchNorm there is no gradient mismatch to repair — gradients reach every layer cleanly, so
-reshaping the surrogate has nothing to fix. **Parked**: surrogate scheduling is a
-depth-scaling tool; revisit when the net is deep enough to show gradient attenuation.
+All three within 0.30 pp (seed noise); the baseline nominally wins. Re-confirmation, not
+discovery: the legacy sigmoid-surrogate scale sweep (vault, 30 May) already showed the smooth
+band is a flat plateau (flat SNN 89.4% @ scale=1, conv 92.5% @ scale=5) with the drop-off only
+at the sharp extreme (scale 25→100 → ~77-81%). The atan α 2→16 range sits on that plateau, so
+a null is expected.
+
+Note on width vs tail: atan α=16 is by half-width *sharper* than sigmoid scale=25 yet held
+92.45% where the sigmoid collapsed to ~81% (both with BatchNorm, so BN is not the protective
+factor). Likely mechanism: atan's Lorentzian tails (1/(1+x²)) keep gradient flowing to
+off-threshold neurons under sharpening, where sigmoid's exponential tails starve them.
+Working hypothesis: **tail shape is the load-bearing variable, not nominal width** (untested).
+
+**Parked**: surrogate width is a non-lever within the atan family at this depth; scheduling is
+a depth-scaling tool, revisit when the net is deep enough to show gradient attenuation.
 
 ## Reading
 
