@@ -93,14 +93,19 @@ above chance:
 
 | config | test acc | notes |
 |---|---|---|
-| 100 neurons, 6k imgs, 1 pass | ~45% (42.8 / 46.3 / 46.9, seeds 0–2) | all 10 classes represented |
-| 400 neurons, 12k imgs | 47.5% | plateaus; specialisation imbalanced (class 2 hogs neurons) |
+| 100 neurons, 6k imgs, no ramping | ~45% (42.8 / 46.3 / 46.9, seeds 0–2) | initial version |
+| 400 neurons, 12k imgs, no ramping | 47.5% | plateaus; specialisation imbalanced (class 2 hogs) |
+| 100 neurons, 6k imgs, **+ intensity ramping** | **64.5%** | class spread evens out, silent imgs 133→49 |
+| 400 neurons, 30k imgs, T=100, + ramping | **70.5%** | class 1 still light (13 neurons); 1353 silent test imgs |
 
-This is a **scoped** reimplementation (reduced timesteps T≈60–80, single pass, current-based
-synapses, no refractory) and plateaus at ~47%, below Diehl & Cook's ~87% at 400 neurons.
-Closing that gap is a fuller-dynamics + more-compute effort, tracked separately. The point here
-is that the backprop-free mechanism works: ~45% unsupervised is the floor to grow from
-(surrogate-gradient reference: 98.9%).
+**Intensity ramping was the single biggest lever** (+18 pp at 100 neurons): D&C's trick of
+re-presenting an image at higher intensity until it drives ≥5 spikes. Without it, low-pixel
+digits (thin '1's) never drove enough spikes to win, so almost no neurons specialised to them —
+the class-representation imbalance that capped accuracy. Progression toward the ~87% D&C target
+(400 neurons): 47.5% → 70.5% via ramping + scale + longer presentation. Remaining gap is a
+fuller-dynamics effort (multiple passes, refractory, conductance synapses, killing the ~13%
+silent-eval images). The backprop-free mechanism works cleanly; this is the honest floor a
+three-factor rule must improve on (surrogate-gradient reference: 98.9%).
 
 Getting-it-working diagnostics (all specific failure modes hit and fixed): (1) weak
 same-timestep lateral inhibition → **WTA collapse**, all neurons learn one shared "mean digit"

@@ -94,6 +94,19 @@ class STDPNet:
             self.W *= (NORM_TARGET / self.W.sum(1, keepdim=True).clamp_min(1e-6))
         return counts
 
+    def present_image(self, image, T, learn, noise_std=0.0, min_spikes=5, max_tries=6):
+        """D&C intensity ramping: re-present at higher intensity until the image drives
+        enough spikes. Ensures dim digits (thin '1's) still produce learning signal, fixing the
+        class-representation imbalance where low-pixel digits get almost no dedicated neurons."""
+        intensity = INTENSITY
+        counts = None
+        for _ in range(max_tries):
+            counts = self.present(image * intensity, T, learn, noise_std)
+            if counts.sum() >= min_spikes:
+                break
+            intensity += 0.10
+        return counts
+
 
 def load_mnist(n_train, n_test):
     tf = transforms.ToTensor()
@@ -110,7 +123,7 @@ def assign_labels(net, X, y, T, n_classes=10):
     """Sum each neuron's response per class over a labelling set; label neuron by its best class."""
     resp = torch.zeros(net.n_exc, n_classes, device=net.device)
     for i in range(X.size(0)):
-        counts = net.present(X[i] * INTENSITY, T, learn=False)
+        counts = net.present_image(X[i], T, learn=False)
         resp[:, y[i]] += counts
     return resp.argmax(1)  # [n_exc] -> class label per neuron
 
@@ -120,7 +133,7 @@ def evaluate(net, X, y, neuron_label, T, n_classes=10):
     total_spikes = 0.0
     silent = 0
     for i in range(X.size(0)):
-        counts = net.present(X[i] * INTENSITY, T, learn=False)
+        counts = net.present_image(X[i], T, learn=False)
         total_spikes += counts.sum().item()
         if counts.sum().item() == 0:
             silent += 1
@@ -161,7 +174,7 @@ def main():
     t0 = time.time()
     for p in range(args.passes):
         for i in range(args.n_train):
-            net.present(Xtr[i] * INTENSITY, args.T, learn=True, noise_std=args.noise_std)
+            net.present_image(Xtr[i], args.T, learn=True, noise_std=args.noise_std)
             if (i + 1) % 2000 == 0:
                 dead = (net.W.sum(1) < 1e-3).sum().item()
                 print(f"  pass {p+1} img {i+1}/{args.n_train}  "
