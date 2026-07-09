@@ -95,17 +95,21 @@ above chance:
 |---|---|---|
 | 100 neurons, 6k imgs, no ramping | ~45% (42.8 / 46.3 / 46.9, seeds 0–2) | initial version |
 | 400 neurons, 12k imgs, no ramping | 47.5% | plateaus; specialisation imbalanced (class 2 hogs) |
-| 100 neurons, 6k imgs, **+ intensity ramping** | **64.5%** | class spread evens out, silent imgs 133→49 |
-| 400 neurons, 30k imgs, T=100, + ramping | **70.5%** | class 1 still light (13 neurons); 1353 silent test imgs |
+| 100 neurons, 6k imgs, **+ intensity ramping** | 64.5% | class spread evens out, silent imgs 133→49 |
+| 400 neurons, 30k imgs, T=100, + ramping | 70.5% | class 1 still light; 1353 silent test imgs |
+| **800 neurons, 30k×2 passes, T=100, ramping (max_tries 6)** | **86.04%** | matches D&C regime; silent imgs → 210 |
 
-**Intensity ramping was the single biggest lever** (+18 pp at 100 neurons): D&C's trick of
-re-presenting an image at higher intensity until it drives ≥5 spikes. Without it, low-pixel
-digits (thin '1's) never drove enough spikes to win, so almost no neurons specialised to them —
-the class-representation imbalance that capped accuracy. Progression toward the ~87% D&C target
-(400 neurons): 47.5% → 70.5% via ramping + scale + longer presentation. Remaining gap is a
-fuller-dynamics effort (multiple passes, refractory, conductance synapses, killing the ~13%
-silent-eval images). The backprop-free mechanism works cleanly; this is the honest floor a
-three-factor rule must improve on (surrogate-gradient reference: 98.9%).
+Progression 47.5% → **86.04%**, backprop-free the whole way. Two levers did it:
+1. **Intensity ramping** (+18 pp alone at 100 neurons) — D&C's trick of re-presenting an image
+   at higher intensity until it drives ≥5 spikes. Without it, thin low-pixel digits never won
+   neurons, capping accuracy via class imbalance. Raising `max_tries` 4→6 also cut silent-eval
+   images (a direct auto-fail) from ~13% to ~2%.
+2. **Scale + revisiting** — 800 neurons and a 2nd pass over the data sharpen and spread the
+   receptive fields (class 1 rep 13→32 neurons).
+
+**86.04% is now the honest pure-STDP floor** a three-factor / reward-modulated rule must beat
+(surrogate-gradient reference: 98.9%). All primitives here are on-chip-implementable, with two
+caveats flagged for deployment: weight-normalisation and hard-WTA are not cleanly local.
 
 Getting-it-working diagnostics (all specific failure modes hit and fixed): (1) weak
 same-timestep lateral inhibition → **WTA collapse**, all neurons learn one shared "mean digit"
