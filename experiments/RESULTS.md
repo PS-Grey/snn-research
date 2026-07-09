@@ -143,6 +143,38 @@ and robust to it; here noise attacks the credit-assignment mechanism directly. *
 implication:** intrinsic device noise on neuromorphic hardware could degrade hard-WTA STDP unless
 the winner-selection is made noise-robust — worth carrying into the on-chip direction.
 
+## Three-factor R-STDP readout — reward beats neurons (2026-07-09)
+
+Script: `stdp_three_factor.py`. Adds the missing third factor to the plateaued pure-STDP net: a
+global reward signal gating a local update (the Loihi-supported, on-chip form of goal-directed
+learning). Frozen 800-neuron unsupervised-STDP features; a 10-class spiking readout trained by
+reward-modulated STDP (rate form: predict by argmax, and on error push the correct class's
+synapses up and the wrong winner's down — reward-gated pre×post Hebbian). No backprop.
+
+| approach | neurons | test acc |
+|---|---|---|
+| pure STDP (unsupervised) | 800 | 86.04% |
+| pure STDP ceiling | 3200 | 88.58% |
+| **three-factor R-STDP** | **800** | **89.18%** |
+| surrogate-gradient (ref) | — | 98.9% |
+
+**Two wins, both predicted by the scaling-curve plateau:**
+1. +3.1 pp over pure STDP on the *same* 800 features — the reward signal adds real value the
+   unsupervised rule couldn't extract.
+2. Beats the pure-STDP *3200-neuron* ceiling (88.58%) with only 800 neurons — **one global
+   reward signal outperforms 4× the neurons.** This is the on-chip efficiency payoff: reward
+   substitutes for neuron/synapse count, the expensive resource on hardware.
+
+The ~10 pp gap to the surrogate reference remains — the frozen features cap it (readout train
+error plateaus ~7.7%, so the linear-separability of the unsupervised features is the limit, not
+the readout). Closing more needs the reward to shape the *features* too (both-layers-plastic,
+deferred follow-up), or better features.
+
+Caveat: this is the **rate form** of R-STDP (feature spike-counts → reward-gated Hebbian), not a
+time-resolved eligibility-trace output layer. It is the standard on-chip R-STDP classifier and a
+fair test of the third-factor claim; the spike-faithful version should be confirmed before this
+is treated as deployment-ready.
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
