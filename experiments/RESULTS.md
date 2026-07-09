@@ -91,25 +91,30 @@ post-hoc by response. CPU (tiny per-step tensors beat MPS launch overhead).
 **Mechanism confirmed.** Unsupervised STDP learns digit-selective neurons and classifies well
 above chance:
 
-| config | test acc | notes |
-|---|---|---|
-| 100 neurons, 6k imgs, no ramping | ~45% (42.8 / 46.3 / 46.9, seeds 0–2) | initial version |
-| 400 neurons, 12k imgs, no ramping | 47.5% | plateaus; specialisation imbalanced (class 2 hogs) |
-| 100 neurons, 6k imgs, **+ intensity ramping** | 64.5% | class spread evens out, silent imgs 133→49 |
-| 400 neurons, 30k imgs, T=100, + ramping | 70.5% | class 1 still light; 1353 silent test imgs |
-| **800 neurons, 30k×2 passes, T=100, ramping (max_tries 6)** | **86.04%** | matches D&C regime; silent imgs → 210 |
-
-Progression 47.5% → **86.04%**, backprop-free the whole way. Two levers did it:
+Getting-it-working progression (100 neurons, no ramping → the config below), backprop-free
+throughout. Two levers took it from ~45% to the mid-80s:
 1. **Intensity ramping** (+18 pp alone at 100 neurons) — D&C's trick of re-presenting an image
    at higher intensity until it drives ≥5 spikes. Without it, thin low-pixel digits never won
    neurons, capping accuracy via class imbalance. Raising `max_tries` 4→6 also cut silent-eval
-   images (a direct auto-fail) from ~13% to ~2%.
-2. **Scale + revisiting** — 800 neurons and a 2nd pass over the data sharpen and spread the
-   receptive fields (class 1 rep 13→32 neurons).
+   images (a direct auto-fail) from ~13% to ~2% (0% by 1600 neurons).
+2. **Scale + revisiting** — more neurons and a 2nd pass sharpen and spread the receptive fields.
 
-**86.04% is now the honest pure-STDP floor** a three-factor / reward-modulated rule must beat
-(surrogate-gradient reference: 98.9%). All primitives here are on-chip-implementable, with two
-caveats flagged for deployment: weight-normalisation and hard-WTA are not cleanly local.
+**Scaling curve (30k imgs × 2 passes, T=100, ramping, theta_plus 5e-4):**
+
+| neurons | 100 | 400 | 800 | 1600 | 3200 |
+|---|---|---|---|---|---|
+| test acc | ~46% | 70.5% | 86.04% | **88.68%** | 88.58% |
+
+**Pure STDP plateaus at ~88.6%.** Doubling neurons 1600→3200 buys nothing (−0.1 pp); the
+~10 pp gap to the surrogate reference (98.9%) is **not** closable by adding neurons. Mechanism:
+unsupervised STDP has no signal to allocate neurons by *class usefulness*, so extra capacity
+piles onto already-popular prototypes — at 3200, class 2 hogs 729 neurons while class 1 is
+starved at 110. This is exactly the failure a global reward signal (three-factor / R-STDP) is
+meant to fix, so the three-factor experiment is now empirically motivated: **neurons are
+exhausted as a lever at ~88.6%.**
+
+All primitives here are on-chip-implementable, with two caveats flagged for deployment:
+weight-normalisation and hard-WTA are not cleanly local.
 
 Getting-it-working diagnostics (all specific failure modes hit and fixed): (1) weak
 same-timestep lateral inhibition → **WTA collapse**, all neurons learn one shared "mean digit"
