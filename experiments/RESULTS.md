@@ -81,6 +81,54 @@ that overflows to inf→NaN for neurons more than ~20 below threshold — routin
 conv-SNN — silently pinning training at chance regardless of slope. Use a `torch.sigmoid`-based
 surrogate (as here / the 30-May script). This bug invalidated a first run of this experiment.
 
+## Backprop-free: unsupervised STDP baseline + noise (post-pivot, 2026-07-09)
+
+Script: `stdp_diehl_cook.py`. First experiment of the backprop-free direction — MNIST learned
+with a local, on-chip-implementable rule only (trace-STDP + winner-take-all + adaptive-threshold
+homeostasis + weight normalisation). No backprop, no labels during learning; neurons labelled
+post-hoc by response. CPU (tiny per-step tensors beat MPS launch overhead).
+
+**Mechanism confirmed.** Unsupervised STDP learns digit-selective neurons and classifies well
+above chance:
+
+| config | test acc | notes |
+|---|---|---|
+| 100 neurons, 6k imgs, 1 pass | ~45% (42.8 / 46.3 / 46.9, seeds 0–2) | all 10 classes represented |
+| 400 neurons, 12k imgs | 47.5% | plateaus; specialisation imbalanced (class 2 hogs neurons) |
+
+This is a **scoped** reimplementation (reduced timesteps T≈60–80, single pass, current-based
+synapses, no refractory) and plateaus at ~47%, below Diehl & Cook's ~87% at 400 neurons.
+Closing that gap is a fuller-dynamics + more-compute effort, tracked separately. The point here
+is that the backprop-free mechanism works: ~45% unsupervised is the floor to grow from
+(surrogate-gradient reference: 98.9%).
+
+Getting-it-working diagnostics (all specific failure modes hit and fixed): (1) weak
+same-timestep lateral inhibition → **WTA collapse**, all neurons learn one shared "mean digit"
+→ fixed with single-winner-per-timestep WTA; (2) `theta_plus` too large vs input drive →
+homeostasis **silences neurons** by eval (0 spikes/img) → fixed by tuning `theta_plus` to the
+drive scale (sweet spot 5e-4: 15 spikes/img, all classes). Bounding the pre-trace to [0,1]
+*hurt* (33.7% vs 46.3%): the larger unbounded-trace updates concentrate weights more sharply
+and drive firing harder.
+
+**Noise result — membrane noise HURTS STDP** (opposite of the surrogate-gradient / legacy
+regimes where noise helped). 100 neurons, seed 0:
+
+| membrane noise σ | test acc | eval spikes/img |
+|---|---|---|
+| 0.0 | 46.3% | 15.1 |
+| 0.05 | 35.9% | 7.1 |
+| 0.10 | 35.3% | 6.1 |
+| 0.20 | 32.4% | 5.5 |
+
+Robust across seeds (noise 0.1 → 35.7% / 35.1% at seeds 1–2 vs 42.8 / 46.9 no-noise). Mechanism:
+in hard-WTA STDP the learning signal **is** the winner selection (`argmax` of membrane), so
+membrane noise corrupts which neuron wins → neurons get STDP updates for images they don't match
+→ misattributed credit blurs their receptive fields → lower drive, fewer spikes, lower accuracy.
+The surrogate regime tolerated/liked noise because there the gradient channel is separate from
+and robust to it; here noise attacks the credit-assignment mechanism directly. **Deployment
+implication:** intrinsic device noise on neuromorphic hardware could degrade hard-WTA STDP unless
+the winner-selection is made noise-robust — worth carrying into the on-chip direction.
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
