@@ -94,6 +94,31 @@ class STDPNet:
             self.W *= (NORM_TARGET / self.W.sum(1, keepdim=True).clamp_min(1e-6))
         return counts
 
+    def present_spiketrain(self, image, T, min_spikes=5, max_tries=6):
+        """Frozen forward pass returning the per-timestep winner index (-1 = no spike), with the
+        same intensity ramping as present_image. For feeding a downstream spiking readout that
+        needs real spike timing, not just counts."""
+        intensity = INTENSITY
+        dev = self.device
+        for _ in range(max_tries):
+            rates = (image * intensity).to(dev)
+            v = torch.zeros(self.n_exc, device=dev)
+            train = torch.full((T,), -1, dtype=torch.long, device=dev)
+            n_spk = 0
+            for t in range(T):
+                s_in = (torch.rand(self.n_input, device=dev) < rates).float()
+                v = v * V_DECAY + self.W @ s_in
+                above = v - (V_THRESH + self.theta)
+                if (above > 0).any():
+                    w = int(above.argmax())
+                    train[t] = w
+                    v[w] = V_RESET
+                    n_spk += 1
+            if n_spk >= min_spikes:
+                break
+            intensity += 0.10
+        return train
+
     def present_image(self, image, T, learn, noise_std=0.0, min_spikes=5, max_tries=6):
         """D&C intensity ramping: re-present at higher intensity until the image drives
         enough spikes. Ensures dim digits (thin '1's) still produce learning signal, fixing the

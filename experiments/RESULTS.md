@@ -171,9 +171,13 @@ the readout). Closing more needs the reward to shape the *features* too (both-la
 deferred follow-up), or better features.
 
 Caveat: this is the **rate form** of R-STDP (feature spike-counts → reward-gated Hebbian), not a
-time-resolved eligibility-trace output layer. It is the standard on-chip R-STDP classifier and a
-fair test of the third-factor claim; the spike-faithful version should be confirmed before this
-is treated as deployment-ready.
+time-resolved eligibility-trace output layer. A spike-faithful version (`stdp_three_factor_spiking.py`:
+LIF output neurons, temporal eligibility traces, reward-gated updates) was **attempted but not
+confirmed** — across four design iterations (no-WTA / output-WTA / teacher-forcing) it landed
+45–55% vs the rate form's 69% on the same weak features. The spiking WTA+eligibility+reward
+readout has its own cold-start / WTA-monopoly / teacher-balance tuning problem (a mini D&C). So
+the rate-form 89.18% stands, but **its spike-faithful equivalence is unconfirmed** — parked
+(2026-07-10) in favour of the both-layers-plastic direction.
 
 ## Reading
 
