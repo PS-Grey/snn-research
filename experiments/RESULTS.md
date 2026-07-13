@@ -179,6 +179,21 @@ readout has its own cold-start / WTA-monopoly / teacher-balance tuning problem (
 the rate-form 89.18% stands, but **its spike-faithful equivalence is unconfirmed** — parked
 (2026-07-10) in favour of the both-layers-plastic direction.
 
+### Both-layers-plastic (reward shapes the features too) — WIP, unfinished
+
+`stdp_both_plastic.py`. Lets the global reward reshape the feature layer via reward-modulated
+STDP (each winning feature neuron accumulates an STDP eligibility; reward gates it — correct
+reinforces, wrong pushes away). Protocol: unsup features → baseline readout, then fine-tune
+features with reward, then fresh readout → compare.
+- **Naive version collapsed** (baseline 79.4% → 31.3%, −48 pp on a small config). Mechanism:
+  early on the co-adapting readout is unreliable, so most images read as "wrong" → `R=−1` →
+  anti-Hebbian updates dominate → receptive fields scramble. A documented instability of
+  reward-modulated feature STDP when negative rewards dominate.
+- **Frozen-critic fix** (use the good baseline readout as a stable ~80%-correct reward source →
+  mostly reinforcing) was implemented but the run stalled and was never completed. **Untested.**
+- Status: parked unfinished (2026-07-13). Next: complete the frozen-critic run; if still
+  unstable, add reward baselining (advantage) or correct-only reinforcement.
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old

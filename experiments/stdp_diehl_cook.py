@@ -119,6 +119,34 @@ class STDPNet:
             intensity += 0.10
         return train
 
+    def present_eligibility(self, image, T, min_spikes=5, max_tries=6):
+        """Forward pass (no weight change) that records, per winning neuron, the STDP eligibility
+        = sum over its wins of (x_pre - W_row), i.e. the direction normal STDP would move it.
+        For reward-modulated (three-factor) feature learning: the caller applies
+        W += eta * reward * eligibility. Returns (spike counts, eligibility [n_exc, n_input])."""
+        intensity = INTENSITY
+        dev = self.device
+        for _ in range(max_tries):
+            rates = (image * intensity).to(dev)
+            v = torch.zeros(self.n_exc, device=dev)
+            x_pre = torch.zeros(self.n_input, device=dev)
+            counts = torch.zeros(self.n_exc, device=dev)
+            elig = torch.zeros(self.n_exc, self.n_input, device=dev)
+            for _t in range(T):
+                s_in = (torch.rand(self.n_input, device=dev) < rates).float()
+                x_pre = x_pre * TR_DECAY + s_in
+                v = v * V_DECAY + self.W @ s_in
+                above = v - (V_THRESH + self.theta)
+                if (above > 0).any():
+                    w = int(above.argmax())
+                    v[w] = V_RESET
+                    counts[w] += 1
+                    elig[w] += x_pre - self.W[w]
+            if counts.sum() >= min_spikes:
+                break
+            intensity += 0.10
+        return counts, elig
+
     def present_image(self, image, T, learn, noise_std=0.0, min_spikes=5, max_tries=6):
         """D&C intensity ramping: re-present at higher intensity until the image drives
         enough spikes. Ensures dim digits (thin '1's) still produce learning signal, fixing the
