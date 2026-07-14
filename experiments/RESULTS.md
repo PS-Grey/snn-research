@@ -247,6 +247,10 @@ flat perceptron — the **first improvement over the three-factor 89.18% baselin
 backprop-free (single-layer delta rule, each output's local error × its input). Flat = 89.18%
 matches Exp 8 exactly, so this is a clean drop-in upgrade to the three-factor readout.
 
+**Multi-seed (seeds 0–3): robust.** surprise−flat = +2.09 / +3.15 / +1.98 / +2.16 (mean ≈ +2.3,
+all positive). Surprise is also *less* variable than flat (surprise σ≈0.3 across 90.6–91.4; flat
+σ≈0.6 across 88.1–89.5), so the delta rule is both better and steadier.
+
 Also: surprise-weighting is **more stable** — the perceptron oscillates (ep1 88.4 → ep3 86.7 →
 89.18) while the delta rule climbs monotonically (88.8 → 90.2 → 91.27).
 
