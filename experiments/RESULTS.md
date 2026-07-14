@@ -194,6 +194,38 @@ features with reward, then fresh readout → compare.
 - Status: parked unfinished (2026-07-13). Next: complete the frozen-critic run; if still
   unstable, add reward baselining (advantage) or correct-only reinforcement.
 
+## Graded ('colour') spikes vs binary — confidence is redundant with count (2026-07-14)
+
+Script: `graded_spikes_ab.py`. Idea: an SNN's weakness is a thin 1-bit message, not fewer
+parameters. Give each spike a "colour" = membrane overshoot at firing (a confidence signal the
+binary spike discards; = Loihi graded spike). Clean A/B: same STDP feature net, same R-STDP
+readout, change only the message. Four encodings: A counts, B summed colour, C confidence alone
+(mean overshoot), D counts+confidence as separate channels.
+
+| encoding | 400 neurons (weak) | 800 neurons (strong) |
+|---|---|---|
+| A counts (binary) | 76.80% | 89.23% |
+| B summed colour | 74.95% | 88.18% |
+| C confidence alone | 75.35% | 86.60% |
+| D counts + confidence | **78.25%** | 89.09% |
+| **decisive D − A** | **+1.45 pp** | **−0.14 pp** |
+
+**Negative result at the scale that matters.** The +1.45 pp gain at 400 neurons is a
+weak-feature artefact and **vanishes on strong 800-neuron features** (−0.14 pp, noise). Reading:
+confidence carries *real* class information (arm C alone = 86.6%, near the count's 89.2%), but it
+is **redundant with the spike count** — a neuron that fires more is also more confident. It only
+helped when the features were impoverished (count noisy) and the redundant-but-cleaner
+confidence propped it up. Once features are strong the count already captures the class and
+confidence adds nothing. (Sanity: counts 89.23% ≈ three-factor readout 89.18%.)
+
+Two design lessons regardless: (1) do NOT fold colour into the spike value (arm B mixes count +
+confidence + magnitude noise, strictly worse than counts); keep it a separate channel. (2) On a
+single-axis task (MNIST) the colour is redundant *by construction* — a digit is just a digit.
+
+Falsified: graded confidence as an extra *readout* feature. Still untested (different
+mechanisms): confidence feeding the *learning rule*; a genuinely orthogonal dimension (colour vs
+identity) on a two-axis dataset where the second channel is not redundant.
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old

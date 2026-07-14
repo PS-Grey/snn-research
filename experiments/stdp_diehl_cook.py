@@ -119,6 +119,32 @@ class STDPNet:
             intensity += 0.10
         return train
 
+    def present_image_graded(self, image, T, min_spikes=5, max_tries=6):
+        """Like present_image but ALSO returns the 'colour' per neuron: the summed membrane
+        overshoot (v - threshold) at each of its firings — how far past threshold it was driven,
+        i.e. a confidence signal the plain binary spike normally discards. Same intensity ramping.
+        Returns (spike counts, graded sums). = the Loihi-graded-spike message."""
+        intensity = INTENSITY
+        dev = self.device
+        for _ in range(max_tries):
+            rates = (image * intensity).to(dev)
+            v = torch.zeros(self.n_exc, device=dev)
+            counts = torch.zeros(self.n_exc, device=dev)
+            graded = torch.zeros(self.n_exc, device=dev)
+            for _t in range(T):
+                s_in = (torch.rand(self.n_input, device=dev) < rates).float()
+                v = v * V_DECAY + self.W @ s_in
+                above = v - (V_THRESH + self.theta)
+                if (above > 0).any():
+                    w = int(above.argmax())
+                    counts[w] += 1
+                    graded[w] += float(above[w])       # confidence 'colour' at this firing
+                    v[w] = V_RESET
+            if counts.sum() >= min_spikes:
+                break
+            intensity += 0.10
+        return counts, graded
+
     def present_eligibility(self, image, T, min_spikes=5, max_tries=6):
         """Forward pass (no weight change) that records, per winning neuron, the STDP eligibility
         = sum over its wins of (x_pre - W_row), i.e. the direction normal STDP would move it.
