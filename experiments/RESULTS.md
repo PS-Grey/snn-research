@@ -222,9 +222,30 @@ Two design lessons regardless: (1) do NOT fold colour into the spike value (arm 
 confidence + magnitude noise, strictly worse than counts); keep it a separate channel. (2) On a
 single-axis task (MNIST) the colour is redundant *by construction* — a digit is just a digit.
 
-Falsified: graded confidence as an extra *readout* feature. Still untested (different
-mechanisms): confidence feeding the *learning rule*; a genuinely orthogonal dimension (colour vs
-identity) on a two-axis dataset where the second channel is not redundant.
+Falsified: graded confidence as an extra *readout* feature. Follow-ups now done — see below.
+
+**Follow-up 1: are count and overshoot even coupled?** Measured per-neuron correlation between
+spike count and mean overshoot across images: **r = 0.045** (median 0.034) — nearly independent
+channels. So on MNIST they were redundant only because both encode the *one* label (digit), not
+because they are the same signal. (The 0.70 global count-vs-graded-sum figure is trivial:
+graded-sum = count × overshoot.) This *reopened* the orthogonal-axis idea.
+
+**Follow-up 2: two-axis test (`stdp_two_axis.py`).** Digit (axis 1) + independent contrast level
+(axis 2, a magnitude property), ramping off. Binary vs graded on each head (400 neurons):
+
+| head | binary | graded | Δ |
+|---|---|---|---|
+| digit | 59.05% | 60.10% | +1.05 |
+| contrast | 57.00% | 56.00% | **−1.00** |
+
+**Negative on the contrast head.** Contrast is a global-drive property, so it changes spike
+*count* too (more drive → more spikes), and binary count already reads it (57% vs 33% chance);
+overshoot adds nothing. **Synthesis:** count and overshoot ARE independent channels, but any
+*input* property that drives overshoot also drives count, so you cannot load a controllable
+second *label* into overshoot via pixels. Overshoot's independent content is an intrinsic
+match-quality signal, not a dialable axis. The orthogonal-colour vision needs colour as a
+**computed payload** the network *sets* on the spike (true Loihi graded spike), not membrane
+overshoot *driven by* the input — a different, larger design. Idea 3 closed here.
 
 ## Surprise-weighted learning — prediction-error beats the perceptron (2026-07-14)
 
