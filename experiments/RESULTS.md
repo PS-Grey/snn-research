@@ -226,6 +226,42 @@ Falsified: graded confidence as an extra *readout* feature. Still untested (diff
 mechanisms): confidence feeding the *learning rule*; a genuinely orthogonal dimension (colour vs
 identity) on a two-axis dataset where the second channel is not redundant.
 
+## Surprise-weighted learning — prediction-error beats the perceptron (2026-07-14)
+
+Script: `stdp_surprise_learning.py`. Tests confidence feeding the *learning rule* (not the
+readout, which was redundant). Sergiy's concern: "learn more from confident spikes" overfloods
+with easy cases and neglects the hard/uncertain ones. The fix is to learn from ERROR/SURPRISE,
+not confidence — the delta rule / focal-loss / dopamine-as-prediction-error principle, still
+local and backprop-free. Applied to the readout only (the recorded "spike-rate as difficulty →
+unstable" failure mode is a circular feedback into the *representation*; the readout has no such
+loop). Three rules on the same frozen 800-neuron features:
+
+| rule | test acc | vs flat |
+|---|---|---|
+| A flat (perceptron on error = Exp 8 readout) | 89.18% | — |
+| **B surprise (delta: W += lr·(onehot − softmax)·f)** | **91.27%** | **+2.09** |
+| C confidence-weighted (B scaled by max p) | 91.01% | +1.83 |
+
+**Confirmed positive, and it survived 400→800** (unlike the graded-spike gain). +2.09 pp over the
+flat perceptron — the **first improvement over the three-factor 89.18% baseline**, still fully
+backprop-free (single-layer delta rule, each output's local error × its input). Flat = 89.18%
+matches Exp 8 exactly, so this is a clean drop-in upgrade to the three-factor readout.
+
+Also: surprise-weighting is **more stable** — the perceptron oscillates (ep1 88.4 → ep3 86.7 →
+89.18) while the delta rule climbs monotonically (88.8 → 90.2 → 91.27).
+
+On Sergiy's overflooding concern: **an earlier run showed confidence-weighting crashing to 45%
+(−31 pp), but that was a learning-rate under-training artefact — retracted.** With a matched
+effective rate, confidence-weighting is +1.83 (helps) but stays consistently ≤ surprise (margin
+2.15 pp at 400 neurons, 0.26 pp at 800). So the intuition holds in *direction* (learn from error
+> learn from confidence, because confidence neglects uncertain cases), but it is not the
+catastrophe the buggy run implied on strong features.
+
+Caveat: the delta rule's softmax is a mild cross-output (lateral) operation, like the WTA/argmax
+the perceptron already needs — small, on-chip-feasible, flagged for deployment. Backprop-free
+progression so far: pure STDP 88.6% → three-factor perceptron 89.18% → **surprise delta 91.27%**
+(surrogate reference 98.9%).
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
