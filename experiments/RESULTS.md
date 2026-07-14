@@ -266,6 +266,34 @@ the perceptron already needs — small, on-chip-feasible, flagged for deployment
 progression so far: pure STDP 88.6% → three-factor perceptron 89.18% → **surprise delta 91.27%**
 (surrogate reference 98.9%).
 
+## Surprise into FEATURE learning — fails, and instructively (2026-07-14)
+
+Script: `stdp_surprise_features.py`. Extends Exp 9's surprise signal from the readout into the
+feature layer, with an anti-instability design: global surprise from a frozen critic (not
+per-neuron self-judgement, to dodge the "spike-rate as difficulty → circular" trap), magnitude
+only (never sign, to dodge the anti-Hebbian collapse). Protocol: unsup features → surprise-delta
+readout = baseline; surprise-weighted feature fine-tune; fresh readout = final.
+
+**Negative across every variant** (400 neurons, baseline 80.65%): continuous surprise (−25.5 pp),
+binary hard-example surprise (−29.2 pp), gentle eta 10× smaller (−39.6 pp — *worse* with more
+fine-tuning). Degrades monotonically with the amount of fine-tuning, at every step size.
+
+**Mechanism (why it must fail):** on a misclassified image the feature neurons that fired are
+the ones causing the wrong answer; Hebbian only moves weights *toward* the input, so "learn more
+from this error" makes those neurons respond *even more* to the image they already get wrong —
+reinforcing the mistake, and compounding (more errors → higher surprise → more wrong-
+reinforcement; `mean surprise` rises epoch-over-epoch). To *fix* an error you must weaken the
+wrong responders (anti-Hebbian, sign-flip), which is exactly the direction that collapsed the
+naive both-plastic (−48 pp). (A frozen-critic drift-mismatch inflates the effect too.)
+
+**The tension, demonstrated from both sides:** stable (Hebbian-only) can't improve separability
+and reinforces errors; corrective (anti-Hebbian) destabilises unsupervised STDP. So the **readout
+is where the global surprise signal safely helps** (a supervised linear layer does the corrective
+push-apart with signed error updates), while the **unsupervised feature layer resists** global-
+signal improvement. This justifies the architecture: features unsupervised, surprise in the
+readout. Parked; the remaining path to shape features would need a genuinely stable corrective
+local rule (e.g. contrastive / predictive-coding), not reward-modulated Hebbian.
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
