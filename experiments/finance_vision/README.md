@@ -16,17 +16,27 @@ Input 64×4 price-normalised OHLC; output P(fwd7 > 0). Train only on `split=="tr
 baseline ~54.3% (test period is bear-tilted). Tradeable metric = decile spread (mean fwd7 of
 top-10%-bullish minus bottom-10%).
 
-## Result — OHLC-only is empty (2026-07-20)
+## Results (2026-07-20)
 | model | test acc | decile spread |
 |---|---|---|
-| CNN from scratch (finance) | 51.4% | +0.30% |
+| gbm-flow (finance, HGB on 7 channels) | 50.7% | +1.43% |
+| **SNN + flow (naive channel-stack)** | **52.2%** | **+1.21%** |
 | control (permuted labels) | 54.5% | +0.47% |
-| **SNN event-stream, 64-bar LIF** | **49.2%** | **−0.88%** |
+| CNN OHLC-only (finance) | 51.4% | +0.30% |
+| SNN OHLC-only | 49.2% | −0.88% |
 
-Train accuracy climbs (51→58%) while test stays at chance — the SNN fits training noise that
-doesn't generalise. The temporal inductive bias did **not** rescue signal-free data: spatial
-(CNN) and temporal (SNN) models agree the OHLC-only charts are empty at this scale (~10k train
-charts, crypto dailies). Not tuned further — more capacity only overfits harder.
+**OHLC-only is empty; flow carries signal.** The SNN goes from noise floor on OHLC-only (−0.88%)
+to 3× the floor with volume/whale/taker channels (+1.21%) — the flow signal is real and the SNN
+uses it, independently confirming the GBM finding. But it **matches, does not beat**, the summary
+GBM (+1.21 vs +1.43, a −0.22 pp gap = within noise given sample overlap + single seed). So the
+event-stream representation is **neutral vs window-summaries** — no better, no worse — on this
+naive encoding. The temporal inductive bias rescued nothing on empty OHLC data (spatial CNN and
+temporal SNN agree it's empty).
+
+**Not yet tested — the actual event-stream hypothesis:** the flow channels are fed as plain
+per-bar features, NOT as the suggested event mappings (volume → graded spike magnitude, whale →
+second polarity, taker → event direction). That is the representation that could beat summaries;
+"neutral" is the verdict for feature-stacking, not for event encoding proper.
 
 ## Next (where signal might actually be)
 - **Volume / whale-crowd / taker-flow channels** (finance export, same 64-bar window + 7d label +

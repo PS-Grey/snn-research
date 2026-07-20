@@ -43,10 +43,10 @@ def pick_device():
     return torch.device("cpu")
 
 
-def bar_features(ohlc):
-    """OHLC [N,64,4] -> per-bar event/temporal features [N,64,F]. Deltas & bar shape, not raw
-    levels: an event stream cares about change, not absolute price."""
-    o, h, l, c = ohlc[..., 0], ohlc[..., 1], ohlc[..., 2], ohlc[..., 3]
+def bar_features(arr):
+    """[N,64,C] -> per-bar event/temporal features. C=4 (OHLC) or 7 (+flow). Deltas & bar shape,
+    not raw levels: an event stream cares about change, not absolute price."""
+    o, h, l, c = arr[..., 0], arr[..., 1], arr[..., 2], arr[..., 3]
     eps = 1e-6
     prev_c = np.concatenate([c[:, :1], c[:, :-1]], axis=1)
     ret = (c - prev_c) / (prev_c + eps)          # bar-to-bar return (the core 'event')
@@ -54,23 +54,31 @@ def bar_features(ohlc):
     body = (c - o) / (c + eps)                    # bar body (green/red magnitude)
     uwick = (h - np.maximum(o, c)) / (c + eps)    # upper wick
     lwick = (np.minimum(o, c) - l) / (c + eps)    # lower wick
-    feats = np.stack([ret, rng, body, uwick, lwick], axis=-1).astype(np.float32)
-    return feats                                  # [N,64,5]
+    chans = [ret, rng, body, uwick, lwick]
+    if arr.shape[-1] == 7:                         # flow channels
+        chans.append(np.log(arr[..., 4] + eps))   # rel_volume (heavy-tailed -> log): magnitude
+        chans.append(np.log(arr[..., 5] + eps))   # rel_avg_trade_size (whale): log
+        chans.append(arr[..., 6] - 0.5)           # taker_buy_ratio centred: event direction
+    return np.stack(chans, axis=-1).astype(np.float32)
 
 
-def load():
-    ohlc = np.load(os.path.join(DS, "raw.npz"))["ohlc"]
+def load(flow=False):
+    if flow:
+        arr = np.load(os.path.join(DS, "raw_flow.npz"))["ohlcvf"]
+    else:
+        arr = np.load(os.path.join(DS, "raw.npz"))["ohlc"]
     rows = list(csv.DictReader(open(os.path.join(DS, "meta.csv"))))
     ids = np.array([r["id"] for r in rows])
     y = np.array([int(r["label"]) for r in rows], dtype=np.float32)
+    fwd = np.array([float(r["fwd7"]) for r in rows], dtype=np.float32)
     split = np.array([r["split"] for r in rows])
-    X = bar_features(ohlc)
+    X = bar_features(arr)
     tr, te = split == "train", split == "test"
     # standardise features on TRAIN only (no leakage)
     mu = X[tr].reshape(-1, X.shape[-1]).mean(0)
     sd = X[tr].reshape(-1, X.shape[-1]).std(0) + 1e-6
     X = (X - mu) / sd
-    return (X[tr], y[tr]), (X[te], y[te], ids[te])
+    return (X[tr], y[tr]), (X[te], y[te], ids[te], fwd[te])
 
 
 class ChartSNN(nn.Module):
@@ -130,12 +138,16 @@ def main():
     ap.add_argument("--lr", type=float, default=2e-3)
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--tag", default="event-stream 64-bar LIF, surrogate-grad")
+    ap.add_argument("--flow", action="store_true", help="use raw_flow.npz (7 channels)")
+    ap.add_argument("--tag", default=None)
     args = ap.parse_args()
 
     device = pick_device(); torch.manual_seed(args.seed)
-    (Xtr, ytr), (Xte, yte, ids_te) = load()
-    print(f"device: {device} | train {len(Xtr)} test {len(Xte)} | up-rate tr {ytr.mean():.3f}")
+    (Xtr, ytr), (Xte, yte, ids_te, fwd_te) = load(flow=args.flow)
+    tag = args.tag or ("event-stream 64-bar LIF + flow" if args.flow
+                       else "event-stream 64-bar LIF, OHLC-only")
+    print(f"device: {device} | train {len(Xtr)} test {len(Xte)} | feats {Xtr.shape[-1]} "
+          f"| flow {args.flow} | up-rate tr {ytr.mean():.3f}")
 
     tr_loader = DataLoader(TensorDataset(torch.tensor(Xtr), torch.tensor(ytr)),
                            batch_size=args.batch, shuffle=True, num_workers=0)
@@ -163,15 +175,24 @@ def main():
         for xb, _ in te_loader:
             ps.append(torch.sigmoid(model(xb.to(device))).cpu())
     p = torch.cat(ps).numpy()
-    out = os.path.join(DS, "preds_snn.csv")
+    fname = "preds_snn-flow.csv" if args.flow else "preds_snn-ohlc.csv"
+    out = os.path.join(DS, fname)
     with open(out, "w", newline="") as f:
         w = csv.writer(f); w.writerow(["id", "p"])
         for i, pi in zip(ids_te, p):
             w.writerow([i, f"{pi:.6f}"])
+    # decile spread (tradeable metric): top-10% bullish minus bottom-10% realised fwd7
+    k = len(p) // 10
+    order = np.argsort(p)
+    spread = fwd_te[order[-k:]].mean() - fwd_te[order[:k]].mean()
+    acc = ((p > 0.5) == (yte > 0.5)).mean()
     print(f"\nwrote {len(p)} preds -> {out}")
-    print(f"test acc {(( (p>0.5)==(yte>0.5) ).mean())*100:.2f}%  (base rate maj-class ~54.3%)")
-    print(f"\nscore it:\n  ~/Claude/finance/lab/.venv/bin/python "
-          f"~/Claude/finance/lab/arena_score.py preds_snn.csv \"{args.tag}\"")
+    print("=" * 56)
+    print(f"  test acc      : {acc*100:.2f}%   (base rate maj-class ~54.3%)")
+    print(f"  DECILE SPREAD : {spread*100:+.3f}%   (GBM-flow bar +1.43%, noise floor +0.47%)")
+    print("=" * 56)
+    print(f"score it:\n  ~/Claude/finance/lab/.venv/bin/python "
+          f"~/Claude/finance/lab/arena_score.py {fname} \"{tag}\"")
 
 
 if __name__ == "__main__":
