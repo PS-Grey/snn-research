@@ -45,6 +45,27 @@ self-correcting version (`snn-online`) — legitimate walk-forward (learn only f
 ≥7 days before prediction) — which could add value by *tracking* the signal through regime shift,
 not by extracting more of it. Tempered expectation after the batch results.
 
+## Efficiency proxy (`efficiency_proxy.py`, 2026-07-20)
+The SNN's genuine advantage is not accuracy but cost per inference. Can't be *measured* without
+neuromorphic hardware (simulating an SNN on a Mac is slower than a GPU CNN — the win is a chip
+property), so we measure the proxy that determines it:
+
+| metric | value |
+|---|---|
+| spikes / inference | ~1,280 (14.6% sparsity) |
+| event SynOps / inference | ~39,000 |
+| dense input MACs (`fc1`, not event-driven) | ~33,000 |
+| theoretical latency (Loihi-class est.) | ~320 µs |
+| theoretical energy (est.) | ~0.8 µJ |
+| GPU CNN, for contrast | ~single-digit ms, ~mJ |
+
+**The real advantage is ENERGY (~1000×), not latency (~few×, same order)** — a GPU CNN is also
+sub-10 ms, so "spikes react faster" overstates it; the dramatic gap is power. Caveats: estimate
+not measurement; the input front-end is dense (not event-driven), undercutting the pure-spike
+story; and per the finance ARENA, none of it helps retail trading (network + fees dominate). It
+matters only for always-on power-constrained edge, or true HFT — both outside this project's
+scope. Corrected SNN pitch: *same decision at ~1000× less energy*, not *faster reactions*.
+
 ## Next (where signal might actually be)
 - **Volume / whale-crowd / taker-flow channels** (finance export, same 64-bar window + 7d label +
   split). New *information*, the biggest lever. Volume → event magnitude (graded spike);
