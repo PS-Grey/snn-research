@@ -16,27 +16,34 @@ Input 64×4 price-normalised OHLC; output P(fwd7 > 0). Train only on `split=="tr
 baseline ~54.3% (test period is bear-tilted). Tradeable metric = decile spread (mean fwd7 of
 top-10%-bullish minus bottom-10%).
 
-## Results (2026-07-20)
+## Results (2026-07-20) — all rows on the finance arena (single seed)
 | model | test acc | decile spread |
 |---|---|---|
-| gbm-flow (finance, HGB on 7 channels) | 50.7% | +1.43% |
-| **SNN + flow (naive channel-stack)** | **52.2%** | **+1.21%** |
+| gbm-flow (finance, HGB on 7 channels) | 50.7% | **+1.43%** |
+| SNN flow, raw channels (`snn-flow`) | 52.2% | +1.21% |
+| SNN flow, hand event-encoding (`snn-flow-events`) | 50.5% | +0.62% |
 | control (permuted labels) | 54.5% | +0.47% |
 | CNN OHLC-only (finance) | 51.4% | +0.30% |
-| SNN OHLC-only | 49.2% | −0.88% |
+| SNN OHLC-only (`snn-ohlc`) | 49.2% | −0.88% |
 
-**OHLC-only is empty; flow carries signal.** The SNN goes from noise floor on OHLC-only (−0.88%)
-to 3× the floor with volume/whale/taker channels (+1.21%) — the flow signal is real and the SNN
-uses it, independently confirming the GBM finding. But it **matches, does not beat**, the summary
-GBM (+1.21 vs +1.43, a −0.22 pp gap = within noise given sample overlap + single seed). So the
-event-stream representation is **neutral vs window-summaries** — no better, no worse — on this
-naive encoding. The temporal inductive bias rescued nothing on empty OHLC data (spatial CNN and
-temporal SNN agree it's empty).
+**Conclusions (this task, this scale):**
+1. **OHLC-only is empty** — spatial CNN (+0.30%) and temporal SNN (−0.88%) agree the price shape
+   carries nothing. Temporal inductive bias rescued nothing.
+2. **Flow carries real signal** — the SNN jumps to 3× the noise floor (+1.21%) with
+   volume/whale/taker, independently confirming the GBM's finding via a different model class.
+3. **Spikes do not beat summaries** — SNN flow (+1.21%) *matches but does not beat* the summary
+   GBM (+1.43%); the −0.22 pp gap is within noise (sample overlap, single seed).
+4. **Hand event-encoding HURTS** (+0.62%, below the raw-channel SNN). The suggested mappings
+   (volume→magnitude, whale→polarity, taker→direction) *pre-multiply* channels
+   (`up × whale × volume`), collapsing three separable signals into one number — the model can no
+   longer weight them independently. Feeding raw channels and letting the learner find the
+   combination is strictly better. The more "neuromorphic" the representation, the worse it did.
 
-**Not yet tested — the actual event-stream hypothesis:** the flow channels are fed as plain
-per-bar features, NOT as the suggested event mappings (volume → graded spike magnitude, whale →
-second polarity, taker → event direction). That is the representation that could beat summaries;
-"neutral" is the verdict for feature-stacking, not for event encoding proper.
+**Net:** the signal is in the *data* (flow), not the *representation* (spikes/events). A simple
+learner captures it as well as, or better than, the SNN. The one card unplayed is the online /
+self-correcting version (`snn-online`) — legitimate walk-forward (learn only from labels resolved
+≥7 days before prediction) — which could add value by *tracking* the signal through regime shift,
+not by extracting more of it. Tempered expectation after the batch results.
 
 ## Next (where signal might actually be)
 - **Volume / whale-crowd / taker-flow channels** (finance export, same 64-bar window + 7d label +

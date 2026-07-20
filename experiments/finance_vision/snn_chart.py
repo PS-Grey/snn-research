@@ -62,7 +62,33 @@ def bar_features(arr):
     return np.stack(chans, axis=-1).astype(np.float32)
 
 
-def load(flow=False):
+def event_features(arr):
+    """The proper event-stream encoding (flow data only). Each bar's price move becomes a
+    polarity-split, volume-weighted event, per finance's suggested mappings:
+      volume  -> event MAGNITUDE (graded-spike idea: strong participation = strong event)
+      whale   -> second POLARITY (move routed into whale- vs crowd-driven channels)
+      taker   -> event DIRECTION (aggressive buy/sell pressure)
+    Yields 4 polarity channels (up/down x whale/crowd) + taker pressure + bar shape."""
+    o, h, l, c = arr[..., 0], arr[..., 1], arr[..., 2], arr[..., 3]
+    eps = 1e-6
+    prev_c = np.concatenate([c[:, :1], c[:, :-1]], axis=1)
+    ret = (c - prev_c) / (prev_c + eps)
+    rng = (h - l) / (c + eps)
+    body = (c - o) / (c + eps)
+    vol = arr[..., 4]                             # rel_volume -> magnitude (mean 1)
+    ats = arr[..., 5]                             # rel_avg_trade_size -> whale-ness
+    taker = arr[..., 6]                           # [0,1] -> direction/aggression
+    up, dn = np.maximum(ret, 0.0), np.maximum(-ret, 0.0)
+    whale = 1.0 / (1.0 + np.exp(-np.log(ats + eps)))   # >0.5 when trades larger than window avg
+    crowd = 1.0 - whale
+    chans = [up * whale * vol, up * crowd * vol,        # up-whale, up-crowd
+             dn * whale * vol, dn * crowd * vol,        # dn-whale, dn-crowd
+             (taker - 0.5) * vol,                        # taker pressure (volume-weighted)
+             rng, body]                                  # bar shape context
+    return np.stack(chans, axis=-1).astype(np.float32)
+
+
+def load(flow=False, encoding="naive"):
     if flow:
         arr = np.load(os.path.join(DS, "raw_flow.npz"))["ohlcvf"]
     else:
@@ -72,7 +98,7 @@ def load(flow=False):
     y = np.array([int(r["label"]) for r in rows], dtype=np.float32)
     fwd = np.array([float(r["fwd7"]) for r in rows], dtype=np.float32)
     split = np.array([r["split"] for r in rows])
-    X = bar_features(arr)
+    X = event_features(arr) if (flow and encoding == "event") else bar_features(arr)
     tr, te = split == "train", split == "test"
     # standardise features on TRAIN only (no leakage)
     mu = X[tr].reshape(-1, X.shape[-1]).mean(0)
@@ -139,12 +165,14 @@ def main():
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--flow", action="store_true", help="use raw_flow.npz (7 channels)")
+    ap.add_argument("--encoding", choices=["naive", "event"], default="naive")
     ap.add_argument("--tag", default=None)
     args = ap.parse_args()
 
     device = pick_device(); torch.manual_seed(args.seed)
-    (Xtr, ytr), (Xte, yte, ids_te, fwd_te) = load(flow=args.flow)
-    tag = args.tag or ("event-stream 64-bar LIF + flow" if args.flow
+    (Xtr, ytr), (Xte, yte, ids_te, fwd_te) = load(flow=args.flow, encoding=args.encoding)
+    enc = args.encoding if args.flow else "ohlc"
+    tag = args.tag or (f"event-stream 64-bar LIF, flow/{args.encoding}" if args.flow
                        else "event-stream 64-bar LIF, OHLC-only")
     print(f"device: {device} | train {len(Xtr)} test {len(Xte)} | feats {Xtr.shape[-1]} "
           f"| flow {args.flow} | up-rate tr {ytr.mean():.3f}")
@@ -175,7 +203,9 @@ def main():
         for xb, _ in te_loader:
             ps.append(torch.sigmoid(model(xb.to(device))).cpu())
     p = torch.cat(ps).numpy()
-    fname = "preds_snn-flow.csv" if args.flow else "preds_snn-ohlc.csv"
+    fname = ("preds_snn-ohlc.csv" if not args.flow else
+             "preds_snn-flow-events.csv" if args.encoding == "event" else
+             "preds_snn-flow.csv")
     out = os.path.join(DS, fname)
     with open(out, "w", newline="") as f:
         w = csv.writer(f); w.writerow(["id", "p"])
