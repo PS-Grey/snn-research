@@ -66,6 +66,27 @@ story; and per the finance ARENA, none of it helps retail trading (network + fee
 matters only for always-on power-constrained edge, or true HFT — both outside this project's
 scope. Corrected SNN pitch: *same decision at ~1000× less energy*, not *faster reactions*.
 
+## snn-online — walk-forward adaptive, no reliable gain (`snn_online.py`, 2026-07-20)
+Frozen SNN feature extractor + online-adapting delta-rule readout, walking forward through the
+test period learning only from resolved labels (date ≤ t−7d, the fairness rule). Online-lr chosen
+on a train-period holdout (never test). 8-seed:
+
+| | mean | range |
+|---|---|---|
+| frozen readout | +0.57% | −0.96 .. +2.44 |
+| online readout | +0.78% | +0.16 .. +2.31 |
+| **online − frozen** | **+0.22 pp** | **−2.11 .. +1.92** |
+
+**No reliable benefit.** The paired online−frozen delta averages +0.22 pp but swings ±2 pp by
+seed — dominated by noise. The flow signal (whale-follow/crowd-fade) is stationary enough across
+the 2025 regime boundary that walk-forward tracking adds nothing reliable; online just adds
+variance. Confirms the tempered expectation: the SNN's one structural edge over batch GBM
+(on-the-fly adaptation) does not materialise as a gain here. Arena row `snn-online` = +0.90%
+(8-seed ensemble), notes carry the honest no-gain verdict.
+
+**Also exposed:** the SNN-flow readout is high-variance — single-seed +1.21% was optimistic;
+multi-seed frozen mean ~+0.57% (range −1..+2.4). Multi-seeding caught what one seed hid.
+
 ## Next (where signal might actually be)
 - **Volume / whale-crowd / taker-flow channels** (finance export, same 64-bar window + 7d label +
   split). New *information*, the biggest lever. Volume → event magnitude (graded spike);
