@@ -362,6 +362,24 @@ forming timesteps to "settle" — it adds noise, not refinement. **The cheap sho
 predictive coding doesn't exist; PC is a distinct method that has to be built properly.** Confirms
 the survey. (Sanity: top-down-off reproduces the feedforward FF 95.1%.)
 
+## Equilibrium Propagation — 97.6%, new best AND on-chip-deployable (2026-07-21)
+
+Script: `equilibrium_prop.py`. EP is the **strictly two-neuron-local** rule: each synapse updates
+from only the two neurons it connects, measured across two settling states — free phase (input
+clamped, network relaxes to equilibrium) and nudged phase (output gently pulled toward the
+target). Update ∝ (1/β)[ρ(sᵢ)ρ(sⱼ)|nudged − ρ(sᵢ)ρ(sⱼ)|free], symmetric ±β nudging (Laborieux
+2021) to cancel the bias. No backprop; the error spreads through the settling itself.
+
+784→500→10, 25 settling steps, symmetric weights, MNIST: **97.6%** (peak ep18). Backprop-free
+line: STDP 88.6 → surprise 91.3 → FF 95.1 → **EP 97.6** (backprop reference 98.9%). **New best,
+only ~1.3 pp from backprop** — and unlike FF it's *strictly local* (each weight sees only its two
+neurons), the property that lets it run on-chip. Best accuracy *and* best hardware-fit; every
+other method traded one for the other.
+
+Caveat: this is **rate-based** (analog) EP, not spiking — its neuromorphic home is analog
+hardware, and the load-bearing property is the local settling rule. Spiking-EP is the extension.
+Also note MNIST is saturated (~99% ceiling); the method-separating test is CIFAR (→ Colab).
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
