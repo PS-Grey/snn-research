@@ -380,6 +380,23 @@ Caveat: this is **rate-based** (analog) EP, not spiking — its neuromorphic hom
 hardware, and the load-bearing property is the local settling rule. Spiking-EP is the extension.
 Also note MNIST is saturated (~99% ceiling); the method-separating test is CIFAR (→ Colab).
 
+## Corrective STDP (contrastive Hebbian) — subsumed by EP (2026-07-21)
+
+Script: `corrective_stdp.py`. Novelty attempt: give STDP the yes/no signal it lacks (Exp 10) by
+adding Forward-Forward's positive/negative contrast, but with a *pure local Hebbian* update
+(pre×post gated by ±sign) instead of a goodness gradient. Idea: a more hardware-faithful FF.
+
+**Result: dropped, two reasons.** (1) The naive spike-count version does not learn (below chance).
+(2) More importantly — **"contrast + Hebbian update" IS the Contrastive Hebbian Learning family
+(Movellan 1991), and Equilibrium Propagation (Exp 13, 97.6%) is the mature, well-formulated member
+of exactly that family, which we already have.** So corrective-STDP is at best a *cruder EP* — not
+a novelty bet, and worse than what's built. The only genuinely fresh angle would be a *timing*-based
+version (real STDP windows, not spike-count correlation), still EP-adjacent.
+
+Lesson (novelty mode): **identify the method *family* before building.** This idea was subsumed by
+a method we had already implemented. Effort redirected to Direction 2 (learned graded-spike payload,
+genuinely less-explored; lit-scout first).
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
