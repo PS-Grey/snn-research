@@ -315,6 +315,31 @@ signal improvement. This justifies the architecture: features unsupervised, surp
 readout. Parked; the remaining path to shape features would need a genuinely stable corrective
 local rule (e.g. contrastive / predictive-coding), not reward-modulated Hebbian.
 
+## Forward-Forward — breaks the feature ceiling, 95.1% backprop-free (2026-07-21)
+
+Script: `forward_forward.py`. Exp 10 showed we could correct the *readout* but not the *features*
+(Hebbian reinforces errors). Forward-Forward (Hinton 2022) is the fix: a *corrective* rule that
+trains **every layer** with only a **local** objective, no backprop between layers. Each layer
+learns to fire hard ("goodness" high) for a positive input (image + correct label) and weakly for
+a negative one (image + wrong label). Inference: overlay each label, predict the one with highest
+total goodness. Spiking form: goodness = mean(spike-count²) over T; the layer's own surrogate
+gradient does the local update.
+
+2 layers × 500, T=15, 40 epochs, MNIST: **95.1%** (peak ep30). Backprop-free progression:
+pure STDP 88.6% → three-factor 89.18% → surprise-readout 91.27% → **Forward-Forward 95.11%**
+(surrogate-gradient reference 98.9%). **First method to train the features backprop-free** — the
+missing piece from Exp 10 — and +3.8 pp over the previous best, closing half the remaining gap.
+
+Getting-it-working (three specific fixes): (1) **BatchNorm kills FF** — it normalises activity
+magnitude, but magnitude *is* the goodness → g_pos ≈ g_neg, no learning. Removed. (2) label
+drowned by the 784 image dims → amplify the one-hot (×10). (3) **fixed threshold far below the
+operating goodness → trivial collapse** (loss only pushes one side, everything drifts to the
+threshold ignoring the label) → **adaptive threshold at the running-mean goodness** forces
+*separation* (pos above, neg below). That was the unlock: 9% → 95%.
+
+Caveat/honesty: FF is Hinton's method, not ours; the spiking adaptation is modest. Value is the
+head-to-head in a spiking/neuromorphic setting and the mechanism (corrective > unsupervised).
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
