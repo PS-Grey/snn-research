@@ -340,6 +340,28 @@ threshold ignoring the label) → **adaptive threshold at the running-mean goodn
 Caveat/honesty: FF is Hinton's method, not ours; the spiking adaptation is modest. Value is the
 head-to-head in a spiking/neuromorphic setting and the mechanism (corrective > unsupervised).
 
+## Recurrent / top-down FF (the "FFF" idea) — no benefit (2026-07-21)
+
+Script: `forward_forward_recurrent.py`. Tests whether *more/recurrent passes that refine each
+other* (Sergiy's "FFF" idea, the bridge toward predictive coding) beat plain FF. Both layers run
+in one T-step loop; layer 2 feeds back to layer 1 each step (settling). Each layer still trains
+on its own local FF goodness, cross-layer signals detached (no backprop between layers). Clean
+A/B, same net:
+
+| | final MNIST |
+|---|---|
+| top-down OFF (feedforward FF) | 95.00% |
+| top-down ON (recurrent settling) | 94.51% |
+
+**Negative: top-down feedback is marginally worse (~−0.4 pp), consistent across the run.** Why:
+adding a recurrent connection to FF is **not** predictive coding. Real PC has the top-down layer
+*predict* bottom-up activity, uses the *error* between them to drive updates, and *iterates to
+convergence* (the ~100× compute the lit-scout flagged). This version just adds a feedback wire
+and keeps the FF goodness objective, so the feedback has no error-correcting role and only ~15
+forming timesteps to "settle" — it adds noise, not refinement. **The cheap shortcut to
+predictive coding doesn't exist; PC is a distinct method that has to be built properly.** Confirms
+the survey. (Sanity: top-down-off reproduces the feedforward FF 95.1%.)
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
