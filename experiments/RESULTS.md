@@ -587,3 +587,33 @@ to *carry* the graded state; downstream weights do the rest.
 protected second channel; the Hajizada-2025 convergence). The end-to-end probe is structurally blind
 to payload value. Owed controls if pursued: param-matched binary (`--wide`), and a fix for the
 learned_u collapse (init/scale of the payload layer). The honest next test is the LOCAL-rule regime.
+
+## Cost-of-relearning replay — null over 3 seeds, and a correction to Exp 19 (Exp 21, 2026-07-22)
+
+First implementation of the scout-confirmed-open criterion (`cost_replay.py`): schedule replay by
+REACQUISITION COST (basin-narrowness proxy: margin collapse under input perturbation) vs uniform and
+vs MIR (forgetting/low-retention), matched budget, 20-class MNIST+Fashion class-incremental, EP.
+
+Seed 0 looked like the scout's prediction (cost beat MIR by +3.8pp on hard/Fashion classes, trading
+MNIST). **It did not survive multi-seed.** Means over seeds 0/1/2:
+
+| arm | overall | MNIST | Fashion |
+|---|---|---|---|
+| uniform | **55.9%** | 67.5% | **44.2%** |
+| mir | 53.3% | 68.5% | 38.1% |
+| cost | 47.6% | 63.2% | 32.0% |
+
+**Cost-scheduling is the WORST arm on average** (best only at seed 0, worst at seeds 1&2). No
+scheduler beats uniform robustly. Cost-of-relearning scheduling as implemented (basin-narrowness
+proxy) actively hurts.
+
+**CORRECTION to Exp 19.** Uniform's own overall accuracy swings 42.6%→65.4% across seeds — a 23pp
+RNG range. Single-seed comparisons in this regime are unreliable at the pp level. Exp 19's headline
+"forgetting-scheduled beats uniform +15pp" (56.0 vs 40.9, single seed) does NOT replicate: the same
+rule (mir) at seed 0 here gives 43.9 vs 42.6 (+1.3pp), the difference being RNG ordering alone. **The
++15pp win was seed-luck, not a real effect.** Unified honest verdict across Exp 16–21: no replay
+scheduler (MIR / energy / cost) robustly beats UNIFORM replay under multi-seed. Durable results are
+only the *mechanism* (recall fixes forgetting, Exp 17) and the *observation* (easy-learned classes
+forget faster, Exp 19), neither of which is a scheduling claim. Methodological lesson: every
+class-incremental scheduling comparison needs multi-seed + variance reporting; this was not done for
+Exp 16–19 and their pp-level rankings should be treated as noise.
