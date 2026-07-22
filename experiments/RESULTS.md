@@ -534,3 +534,31 @@ dependent), and the one genuinely-novel angle (EP-native energy signal) does not
 Forks worth deciding before more compute: (a) fair energy signal = actual settled-state EP energy;
 (b) the untouched fully-open bet — a plastic learned graded-spike payload (Δpayload local rule);
 (c) multi-seed the easy-forget-more effect (a clean, self-contained empirical result).
+
+### Fair energy signal — dead, with a clean mechanism (Exp 19b)
+
+Gave direction 2 its fair test: the REAL settled free-phase EP energy (`EPNet.energy`), min-max
+normalised across seen classes, as the replay-priority signal (high energy = shallow basin =
+replay more). Domain order, matched budget:
+
+| arm | all-class |
+|---|---|
+| uniform | 40.9% |
+| forgetting-scheduled (accuracy) | **56.0%** |
+| energy (real EP energy) | 41.4% (≈ uniform) |
+
+**Energy fails because it measures settling *confidence*, not *correctness*.** A catastrophically-
+forgotten class does not fall into a shallow basin — it settles *confidently into a competing
+class's basin* (low energy, wrong label). So the energy scheduler marks collapsed classes as "deep
+basin, safe" and never rescues them: classes 10 and 12 stay at 0% under energy while the accuracy
+signal recovers their neighbours to 70-86%. The early-warning hypothesis was backwards — energy
+gives false *security*, not early warning. Both dir-2 signals (settled confidence, real energy) are
+now killed for principled reasons. Energy's only remaining niche is the LABEL-FREE generative-recall
+regime, where accuracy can't be computed — untested, and a bigger build.
+
+**Where this leaves the recall line:** the one method that works (accuracy-priority replay, +15pp
+domain-order) is known priority replay (MIR), regime-specific. Both novel signal ideas failed. The
+freshest genuinely-different angle is now a *cost-aware* objective (Sergiy, 2026-07-22): schedule by
+**relearning cost, not forgetting amount** — hold what's expensive to reacquire, cheaply relearn the
+easy stuff on demand (mirrors Bjork's desirable difficulties + Anderson & Schooler's rational
+forgetting). Novel-looking in a backprop-free SNN; needs a lit-scout before building.

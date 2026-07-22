@@ -69,27 +69,30 @@ def per_class_acc(net, Xte, yte, classes, steps):
 
 
 @torch.no_grad()
-def basin_signal(net, bufX, bufY, classes, steps):
-    """Direction-2 forgetting signal: shallow basin = low settled confidence for the true class.
-    Settle free-phase on the exemplar, read the output unit for its class. Deep basin -> ~1."""
+def class_energy(net, bufX, bufY, classes, steps):
+    """Direction-2 signal: mean settled free-phase ENERGY per class. High energy = shallow basin
+    = forgetting risk (leading indicator). This is the real EP energy, not readout confidence."""
     sig = {}
     for c in classes:
         m = bufY == c
         if m.any():
-            _, y = net.settle(bufX[m], None, 0.0, steps)
-            sig[c] = rho(y)[:, c].mean().item()             # mean settled confidence for class c
+            sig[c] = net.energy(bufX[m], steps).mean().item()
     return sig
 
 
 def replay_weights(schedule, net, bufX, bufY, seen, steps, dev):
     if not seen or schedule in ("none", "uniform"):
         return torch.ones(len(bufY), device=dev)
-    if schedule == "forgetting":
-        s = per_class_acc(net, bufX, bufY, seen, steps)      # retention on buffer
-    else:                                                    # energy: settled basin depth
-        s = basin_signal(net, bufX, bufY, seen, steps)
-    return torch.tensor([(1.0 - s.get(int(bufY[i]), 1.0)) + 0.05 for i in range(len(bufY))],
-                        device=dev)
+    if schedule == "forgetting":                             # retention on buffer: high = safe
+        s = per_class_acc(net, bufX, bufY, seen, steps)
+        return torch.tensor([(1.0 - s.get(int(bufY[i]), 1.0)) + 0.05 for i in range(len(bufY))],
+                            device=dev)
+    # energy: per-class risk, min-max normalised across seen classes (high energy -> more replay)
+    e = class_energy(net, bufX, bufY, seen, steps)
+    lo, hi = min(e.values()), max(e.values())
+    rng = (hi - lo) or 1.0
+    risk = {c: (e[c] - lo) / rng for c in e}                 # 0 = deepest basin, 1 = shallowest
+    return torch.tensor([risk.get(int(bufY[i]), 0.5) + 0.05 for i in range(len(bufY))], device=dev)
 
 
 def run(schedule, budget, buf_k, Xtr, ytr, Xte, yte, hidden, epochs, batch, beta, steps, dev):

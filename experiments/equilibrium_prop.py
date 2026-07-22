@@ -87,6 +87,20 @@ class EPNet:
         _, y = self.settle(x, None, 0.0, steps)
         return y.argmax(1)
 
+    @torch.no_grad()
+    def energy(self, x, steps):
+        """Per-sample settled free-phase energy (Hopfield/EP energy at the fixed point).
+        E = 0.5||h||^2 + 0.5||y||^2  - rho(h)^T W1 rho(x) - rho(y)^T W2 rho(h) - bh.rho(h) - by.rho(y).
+        LOW (deep basin) = well-remembered; HIGH (shallow basin) = forgetting -- and it goes shallow
+        BEFORE the exemplar misclassifies, so it's a leading forgetting signal, not a lagging one."""
+        h, y = self.settle(x, None, 0.0, steps)
+        rx, rh, ry = rho(x), rho(h), rho(y)
+        quad = 0.5 * (h * h).sum(1) + 0.5 * (y * y).sum(1)
+        c_xh = (rh * (rx @ self.W1.t())).sum(1)          # x <-> h coupling
+        c_hy = (ry * (rh @ self.W2.t())).sum(1)          # h <-> y coupling
+        bias = rh @ self.bh + ry @ self.by
+        return quad - c_xh - c_hy - bias
+
 
 def main():
     ap = argparse.ArgumentParser()
