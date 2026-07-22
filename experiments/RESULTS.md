@@ -617,3 +617,28 @@ only the *mechanism* (recall fixes forgetting, Exp 17) and the *observation* (ea
 forget faster, Exp 19), neither of which is a scheduling claim. Methodological lesson: every
 class-incremental scheduling comparison needs multi-seed + variance reporting; this was not done for
 Exp 16–19 and their pp-level rankings should be treated as noise.
+
+## Learned graded payload under a LOCAL rule — negative, multi-seed, two regimes agree (Exp 22, 2026-07-22)
+
+Exp 20's negative (learned payload useless) could have been an artefact of end-to-end training (W2
+absorbs the payload). This tests the honest regime: fixed random reservoir (hidden NOT trained
+end-to-end), LOCAL delta-rule readout, and a plastic Delta-payload rule (per-neuron input-dependent
+graded value `softplus(a*rate+b)`, params learned by a three-factor DFA rule). `graded_payload_local.py`,
+3 seeds, matched spikes.
+
+| mode | mean acc | per-seed |
+|---|---|---|
+| binary (rate) | 94.47% | 94.39 / 94.52 / 94.51 |
+| computed (sigma-delta) | **95.49%** | 95.53 / 95.49 / 95.44 |
+| fixed (random payload nonlin) | 94.63% | 94.65 / 94.63 / 94.60 |
+| learned (DFA Δpayload) | 94.48% | 94.44 / 94.54 / 94.45 |
+
+`computed - binary = +1.01pp` (robust). `learned - fixed = -0.15pp` (learning the payload is WORSE
+than a random fixed nonlinearity). `learned - computed = -1.01pp`. **The local rule did not rescue
+the learned payload; two independent regimes (end-to-end Exp 20, local Exp 22) agree: a graded
+payload helps only as the KNOWN computed/sigma-delta membrane value; LEARNING it adds nothing.**
+Mechanism: the payload's value is membrane/temporal info the spike count lacks — that is computed,
+not learned; a learned reshape of the rate carries no information a linear readout couldn't use.
+To beat computed, a learned payload would have to read the membrane AND out-encode raw membrane —
+Exp 20's `learned_u` already tried that end-to-end and failed. Both scout-open directions
+(cost-scheduling Exp 21, graded-payload Exp 20/22) now fail their probes with clean mechanisms.
