@@ -397,6 +397,23 @@ Lesson (novelty mode): **identify the method *family* before building.** This id
 a method we had already implemented. Effort redirected to Direction 2 (learned graded-spike payload,
 genuinely less-explored; lit-scout first).
 
+## Catastrophic forgetting demonstrated — the novel-direction setup (2026-07-22)
+
+Script: `continual_forgetting.py`. Answers "does on-chip continual learning keep old knowledge?"
+EP (Exp 13) trained on MNIST, then on Fashion-MNIST (no MNIST rehearsal):
+
+| | MNIST | Fashion |
+|---|---|---|
+| after MNIST | 97.1% | — |
+| after Fashion | **31.8%** (−65 pp) | 65.3% |
+
+**Severe forgetting: MNIST 97→32%, near chance.** The net overwrites the old task to fit the new
+one (and old knowledge interferes with the new task — Fashion only 65% vs ~90% fresh). Confirms:
+naive on-chip continual learning does NOT retain old tasks. Locality doesn't fix this; it can make
+it worse. This is the problem the novel direction attacks (see the vault note *SNN Novelty Target
+— Learned Graded Payload + Continual Learning*): does a **learned graded-payload channel** and/or
+**metaplasticity/stickiness** protect the old task? The scout confirmed that's open ground.
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
