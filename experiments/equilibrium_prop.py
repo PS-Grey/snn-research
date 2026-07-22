@@ -41,20 +41,20 @@ def rho_p(x):
 class EPNet:
     """784 -> hidden -> 10, symmetric weights, energy-based settling. Local EP updates."""
 
-    def __init__(self, hidden, device, lr=(0.1, 0.05), seed=0):
+    def __init__(self, hidden, device, lr=(0.1, 0.05), seed=0, n_classes=10):
         g = torch.Generator().manual_seed(seed)
         k1 = (2 / 784) ** 0.5; k2 = (2 / hidden) ** 0.5
-        self.W1 = (torch.randn(hidden, 784, generator=g) * k1).to(device)   # x <-> h
-        self.W2 = (torch.randn(10, hidden, generator=g) * k2).to(device)    # h <-> y
+        self.W1 = (torch.randn(hidden, 784, generator=g) * k1).to(device)          # x <-> h
+        self.W2 = (torch.randn(n_classes, hidden, generator=g) * k2).to(device)    # h <-> y
         self.bh = torch.zeros(hidden, device=device)
-        self.by = torch.zeros(10, device=device)
-        self.hidden, self.device, self.lr = hidden, device, lr
+        self.by = torch.zeros(n_classes, device=device)
+        self.hidden, self.device, self.lr, self.n_classes = hidden, device, lr, n_classes
 
     def settle(self, x, y_target, beta, steps, dt=0.5):
         """Relax hidden h and output y to equilibrium. beta>0 nudges y toward the target."""
         B = x.size(0)
         h = torch.zeros(B, self.hidden, device=self.device)
-        y = torch.zeros(B, 10, device=self.device)
+        y = torch.zeros(B, self.n_classes, device=self.device)
         rx = rho(x)
         for _ in range(steps):
             # each neuron's drive = its connected neurons (two-neuron locality, both directions)

@@ -492,3 +492,45 @@ MNIST scale.
   collapse. Spike rate self-sparsifies and stabilises without any noise or spike-rate loss.
 - Conclusion so far: the SNN↔ANN gap is a property of the training regime, not of spiking
   computation. Membrane noise is not needed once you train with surrogate gradients + BN.
+
+## Heterogeneous forgetting — the scheduler win is ordering-dependent (Exp 19, 2026-07-22)
+
+Exp 18 was a wrong-regime null (MNIST forgets uniformly). This builds the heterogeneous regime it
+lacked — **MNIST+Fashion as one 20-class class-incremental problem** (0-9 easy, 10-19 hard), EP,
+10 tasks of 2 classes — and re-tests self-scheduled replay at matched 16-sample budget, plus the
+energy/basin-depth signal (direction 2). `continual_hetero.py`, two task orderings.
+
+| arm (matched budget) | domain-order (MNIST→Fashion) | interleave-order (easy+hard per task) |
+|---|---|---|
+| uniform | 40.9% | 48.5% |
+| forgetting-scheduled | **56.0% (+15.1)** | 48.9% (+0.4, null) |
+| energy/basin-depth (dir-2) | 51.0% (+10.1) | 43.9% (−4.6, worse) |
+
+**The +15pp is not general — it needs a structural old/new split.** Under domain-order there is a
+clean pocket of recently-collapsing classes (Fashion at 0%) that uniform replay neglects and the
+scheduler rescues (visible: 11→86, 13→70, 14→80). Interleave the difficulty and that pocket
+disappears, so the scheduler ≈ uniform. Honest read: **self-measured priority replay helps only
+when forgetting is structurally lumpy (domain shift), not when it's diffuse** — consistent with
+known priority-replay results (MIR, Aljundi 2019). So this is a known idea confirmed in a
+backprop-free EP setting, and only in one regime.
+
+**Energy signal (dir-2) underperforms uniform in both orderings.** As implemented (settled output
+confidence for the true class) it's a noisier accuracy meter, not a fair test of the *basin-depth*
+idea — the real EP energy of the settled state was not computed. Either that fair version is built,
+or the premise (energy predicts forgetting better than accuracy) is abandoned; basin depth and
+"still classified right" are correlated by construction, so even a fair version may only match
+accuracy, never beat it. The scout's actual appeal for energy was *elegance* (same quantity does
+generation AND forgetting-readout), not better prediction.
+
+**Easy-vs-hard forgetting (recency-controlled, interleave arm):** with difficulty separated from
+recency (MNIST class c and Fashion c+10 learned in the same task), **easier-learned classes forget
+MORE** — MNIST 35pp vs Fashion 23pp at matched age. Caveat: partly a ceiling effect (MNIST learned
+to higher accuracy → more absolute pp to lose); the relative-retention version is the fairer test,
+and this is single-seed. Interesting direction anyway: sharp, easily-learned representations get
+overwritten faster than the more distributed hard-learned ones.
+
+**Net:** the recall/scheduling line is converging on known territory (priority replay, ordering-
+dependent), and the one genuinely-novel angle (EP-native energy signal) does not yet beat uniform.
+Forks worth deciding before more compute: (a) fair energy signal = actual settled-state EP energy;
+(b) the untouched fully-open bet — a plastic learned graded-spike payload (Δpayload local rule);
+(c) multi-seed the easy-forget-more effect (a clean, self-contained empirical result).
