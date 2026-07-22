@@ -439,6 +439,27 @@ classes present (even self-generated) so their outputs stop being suppressed. Po
 anti-forgetting work at recall, not capacity. Caveat: EP-frozen is a proxy; a true STDP-vs-EP
 comparison would confirm, but the readout-suppression mechanism is architecture-general.
 
+## Recall fixes the forgetting — exemplar rehearsal (2026-07-22)
+
+Script: `recall_continual.py`. Class-incremental EP, no-recall vs 20 stored exemplars/class mixed
+into each new-task batch.
+
+| arm | task-0 (start → end) | final all-class |
+|---|---|---|
+| no-recall (Exp 16 baseline) | 100% → 6% | 14.5% |
+| **recall (20/class)** | 100% → **82%** | **59.9%** |
+
+**Recall dramatically fixes it:** task-0 retention 6→82% (+76 pp), all-class 14.5→60% (+45 pp),
+from only 20 exemplars/class. Confirms the Exp-16 readout-suppression diagnosis — keeping old
+classes present stops their outputs being suppressed. This is the **known baseline** (stored-
+exemplar replay); it validates the mechanism and direction, not novelty. 60% is still below ~97%
+joint training, so recall helps hugely but not fully (more exemplars/rehearsal would push higher).
+
+**Novel targets next (the actual contribution):** (a) **EP-native generative recall** — no stored
+data; the network *settles to generate* old-class patterns itself (energy-based generation),
+rehearsing without a buffer. (b) **Forgetting-curve-scheduled recall** — spaced-repetition timing,
+recall effort proportional to a learned forgetting risk. Lit-scout both before claiming ground.
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
