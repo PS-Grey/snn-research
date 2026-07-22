@@ -67,7 +67,7 @@ class EPNet:
             y = (y + dt * dy).clamp(0, 1)
         return h, y
 
-    def train_step(self, x, y_oh, beta, steps):
+    def train_step(self, x, y_oh, beta, steps, freeze_feat=False):
         h0, y0 = self.settle(x, None, 0.0, steps)                 # free phase
         hp, yp = self.settle(x, y_oh, beta, steps)                # +beta nudged
         hm, ym = self.settle(x, y_oh, -beta, steps)               # -beta nudged (symmetric)
@@ -76,9 +76,10 @@ class EPNet:
         # local EP update: change in two-neuron correlation between the nudged states
         c = 1.0 / (2 * beta * x.size(0))
         self.W2 += lr2 * c * (rho(yp).t() @ rho(hp) - rho(ym).t() @ rho(hm))
-        self.W1 += lr1 * c * (rho(hp).t() @ rx - rho(hm).t() @ rx)
         self.by += lr2 * c * (rho(yp) - rho(ym)).sum(0)
-        self.bh += lr1 * c * (rho(hp) - rho(hm)).sum(0)
+        if not freeze_feat:                                       # freeze the FEATURE layer
+            self.W1 += lr1 * c * (rho(hp).t() @ rx - rho(hm).t() @ rx)
+            self.bh += lr1 * c * (rho(hp) - rho(hm)).sum(0)
         return (y0.argmax(1) == y_oh.argmax(1)).float().mean().item()
 
     @torch.no_grad()

@@ -414,6 +414,31 @@ it worse. This is the problem the novel direction attacks (see the vault note *S
 — Learned Graded Payload + Continual Learning*): does a **learned graded-payload channel** and/or
 **metaplasticity/stickiness** protect the old task? The scout confirmed that's open ground.
 
+## Does freezing features reduce forgetting? NO — it's a READOUT problem (2026-07-22)
+
+Script: `continual_compare.py`. Class-incremental MNIST (5 tasks × 2 classes each), EP full-plastic
+vs features frozen after task 0 (proxy for "unsupervised frozen features + readout", the STDP
+family). Tested "does the learning rule / where-plasticity-lives affect forgetting?"
+
+| arm | task-0 acc (start → end) | final all-class |
+|---|---|---|
+| full (all plastic) | 100% → 6% | 14.5% |
+| frozen (features locked) | 100% → **0%** | 22.2% |
+
+**Hypothesis falsified: freezing the representation does NOT reduce forgetting** (frozen is no
+better, worse on task-0). Both collapse task-0 to ~0% after just the *second* task. **The
+forgetting is in the READOUT, not the features:** in class-incremental training the target for a
+new-class example says the old-class outputs should be *zero*, so the negative nudge **actively
+suppresses** old-class outputs — it doesn't merely neglect them. Feature stability can't help
+because the class-competition that gets clobbered lives in the readout.
+
+**Implications:** (1) "which rule forgets less" is the wrong axis here — the **output structure**
+dominates, not the feature rule. (2) Adding feature *capacity* (graded payload) would NOT fix
+this; the problem is the readout. (3) **Rehearsal/recall attacks the exact mechanism** — keep old
+classes present (even self-generated) so their outputs stop being suppressed. Points the
+anti-forgetting work at recall, not capacity. Caveat: EP-frozen is a proxy; a true STDP-vs-EP
+comparison would confirm, but the readout-suppression mechanism is architecture-general.
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
