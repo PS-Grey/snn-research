@@ -562,3 +562,28 @@ freshest genuinely-different angle is now a *cost-aware* objective (Sergiy, 2026
 **relearning cost, not forgetting amount** — hold what's expensive to reacquire, cheaply relearn the
 easy stuff on demand (mirrors Bjork's desirable difficulties + Anderson & Schooler's rational
 forgetting). Novel-looking in a backprop-free SNN; needs a lit-scout before building.
+
+## Graded-payload probe — learned payload adds nothing over computed, under end-to-end training (Exp 20)
+
+Scaffold for the untouched open problem (`graded_payload.py`): a per-spike graded PAYLOAD that
+rides on already-firing spikes (matched spike budget exact — payload adds zero spikes), transmitting
+`s_j * payload_j`. Surrogate-gradient PROBE (is there capacity at all?). MNIST, 20k train, 4 epochs.
+
+| mode | acc | spk/img | params | note |
+|---|---|---|---|---|
+| binary (rate code) | 95.90% | 1467 | 239k | baseline |
+| computed (membrane = sigma-delta) | **96.70%** | 1360 | 239k | KNOWN method, wins |
+| learned (projection of input x) | 96.51% | 1309 | 474k | redundant with rate code |
+| learned_u (learned readout of membrane) | 95.96% | 1372 | 329k | collapsed toward constant (~binary) |
+
+**A graded payload helps (+0.8pp) but it's the known sigma-delta (raw membrane); LEARNING the
+payload does not beat COMPUTING it.** Both learned variants underperform computed despite more
+params. Mechanism: under end-to-end training the readout W2 already learns to exploit the payload,
+so a separately-learned payload transform is redundant — W2 absorbs its role. The payload only needs
+to *carry* the graded state; downstream weights do the rest.
+
+**Redirect, not death:** a learned payload can only earn capacity where no global readout absorbs it
+— under a **local learning rule** (no end-to-end W2) or in **continual learning** (payload = a
+protected second channel; the Hajizada-2025 convergence). The end-to-end probe is structurally blind
+to payload value. Owed controls if pursued: param-matched binary (`--wide`), and a fix for the
+learned_u collapse (init/scale of the payload layer). The honest next test is the LOCAL-rule regime.
