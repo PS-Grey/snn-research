@@ -460,6 +460,27 @@ data; the network *settles to generate* old-class patterns itself (energy-based 
 rehearsing without a buffer. (b) **Forgetting-curve-scheduled recall** — spaced-repetition timing,
 recall effort proportional to a learned forgetting risk. Lit-scout both before claiming ground.
 
+## Self-measured forgetting-scheduled replay — null at MNIST scale (2026-07-22)
+
+Script: `recall_scheduled.py`. First genuine novelty test. Lit-scout (2026-07-22) confirmed the
+open sub-question: does replay scheduled by the model's OWN measured forgetting beat uniform replay
+at matched budget? (Settle-to-generate EP replay itself is now published — Cook et al. 2026 — so
+the scheduler is the open piece.)
+
+| arm (matched budget 16/step) | task-0 (end) | final all-class |
+|---|---|---|
+| uniform | 78% | 64.2% |
+| forgetting-scheduled (measured retention) | 76% | 63.5% |
+
+**Null — scheduled ≈ uniform (within noise).** Diagnosis: on MNIST the classes forget *uniformly*
+(similar difficulty), so there's nothing for a which-to-replay scheduler to exploit; uniform
+already covers everyone. A self-measured schedule only helps under **heterogeneous forgetting**
+(more tasks, tighter budget, or mixed-difficulty classes — e.g. MNIST+Fashion). **Wrong-regime
+null, not a dead idea.** Also: this is the *crude* version (measured retention as the signal); the
+scout's *coherent* target — **energy/basin-depth as both the generator and the forgetting signal**,
+plus **spiking** — is untested. The open problem stands; its cheapest proxy just doesn't bite at
+MNIST scale.
+
 ## Reading
 
 - The legacy figure of **80.7% as the best pure SNN on MNIST** is an artefact of the old
