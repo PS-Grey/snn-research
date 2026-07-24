@@ -672,3 +672,24 @@ mechanistic finding — **confusions are directional (9→3 but not 3→9), i.e.
 depths, some classes pull neighbours in**. Methodology win: premise check killed a plausible-but-
 wrong idea in two cheap runs before any method was built. My "undertraining" prediction was wrong —
 logged as such.
+
+## Confusion signal battery — REVIVES the idea; mean-output reads confusion at r=0.72 (Exp 24, 2026-07-24)
+
+Exp 23 closed the on-chip confusion idea on ONE signal (runner-up, r=-0.18). Sergiy pushed back:
+systematic confusion means the info exists, so one failed signal is not proof of unusable. Correct.
+Tested a battery (`confusion_signals.py`), asking of each whether its off-diagonal predicts WHERE
+errors actually go. Converged EP (97%), 3 seeds:
+
+| signal | r vs true confusion | verdict |
+|---|---|---|
+| runner-up (2nd output) | -0.16 | dead (Exp 23's signal) |
+| **mean-output** (soft output leakage per class) | **+0.72** [.73 .83 .62] | **strong, robust — clears bar** |
+| hidden-sim (feature-overlap cosine) | +0.29 | real but weak |
+| difficulty-LEVEL (margin vs error rate) | -0.80 | net strongly knows WHEN it struggles |
+
+**Correction to Exp 23: the on-chip form is NOT dead.** The network CAN read its own confusions —
+via mean output leakage (r=0.72), not the runner-up. Caveat: mean-output is semi-local (needs the
+label to group by class + averages over samples; available during EP's nudge phase, accumulated over
+time), not single-synapse-instant. The purest co-firing signal (hidden-sim) is only +0.29 — the
+strong signal is in output leakage, not feature overlap. Methodology note: I over-closed on one
+signal (twice this week Sergiy caught this); a battery was the right call.
