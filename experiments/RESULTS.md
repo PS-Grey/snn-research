@@ -642,3 +642,33 @@ not learned; a learned reshape of the rate carries no information a linear reado
 To beat computed, a learned payload would have to read the membrane AND out-encode raw membrane —
 Exp 20's `learned_u` already tried that end-to-end and failed. Both scout-open directions
 (cost-scheduling Exp 21, graded-payload Exp 20/22) now fail their probes with clean mechanisms.
+
+## Confusion-aware idea — premise check kills the on-chip form (Exp 23, 2026-07-24)
+
+Before building any confusion-aware learning rule, checked its premise on the current EP net
+(`confusion_premise.py`, 3 seeds, MNIST). Prior work (old hybrid/ensemble regime) showed per-class
+difficulty emerges on its own; this checks whether the *specific* signal a local on-chip rule needs
+holds in EP: (1) concentrated confusions, (2) stable across seeds, (3) self-readable from the
+network's own runner-up (2nd-strongest output), (4) symmetric pairs.
+
+Undertrained (10 ep, 20k): looked promising but had a seed-flipping "sink" artefact (all classes
+collapse into 3 or 0). Hypothesis: undertraining scar; proper training would give clean symmetric
+pairs. **Hypothesis FALSIFIED.** Trained to convergence (97.2%, 15 ep, 60k):
+
+| check | result | verdict |
+|---|---|---|
+| concentrated | top-5 pairs = 25% of errors (uniform ~6%) | pass (~4x) |
+| stable | cross-seed corr 0.67 (was 0.78 undertrained — DROPPED) | weak |
+| self-readable (mode) | 3% of classes | fail |
+| self-readable (corr) | runner-up vs error histogram r = **-0.18** | fail (anti-correlated) |
+| symmetry | off-diag vs transpose r = **0.05** | fail (asymmetric, not pairs) |
+
+Core confusions (stable across seeds): 9>3, 4>9, 7>2, 5>3, 8>3. **The on-chip self-sensing form is
+dead:** the network cannot read *which* class it confuses with from its own runner-up (even slightly
+anti-correlated), and confusions are asymmetric/directional, not the clean symmetric pairs the idea
+assumed. A confusion map can only be built with external labels, which defeats the local/on-chip
+point. Survivors: EP's confusion fingerprint (modest, feeds the confusion-matrix thread), and a real
+mechanistic finding — **confusions are directional (9→3 but not 3→9), i.e. valleys have unequal
+depths, some classes pull neighbours in**. Methodology win: premise check killed a plausible-but-
+wrong idea in two cheap runs before any method was built. My "undertraining" prediction was wrong —
+logged as such.
