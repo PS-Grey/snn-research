@@ -693,3 +693,47 @@ label to group by class + averages over samples; available during EP's nudge pha
 time), not single-synapse-instant. The purest co-firing signal (hidden-sim) is only +0.29 — the
 strong signal is in output leakage, not feature overlap. Methodology note: I over-closed on one
 signal (twice this week Sergiy caught this); a battery was the right call.
+
+## "Easy-learned forgets faster" — RETRACTED, it was a ceiling artefact (Exp 25, 2026-07-27)
+
+Exp 19's observation was single-seed with a ceiling confound I flagged but then kept citing as a
+finding. Settled properly (`forgetting_asymmetry.py`, 5 seeds, interleaved/recency-controlled, and
+reporting relative retention alongside absolute points):
+
+| metric | easy/MNIST | hard/Fashion |
+|---|---|---|
+| absolute forgetting (pp) — ceiling-CONFOUNDED | 33.0 ± 2.9 | 22.5 ± 5.6 |
+| **relative retention (% of learned kept) — CONTROLLED** | **64.4 ± 3.0** | **64.2 ± 3.3** |
+
+The absolute gap reproduces across all 5 seeds, so the measurement was right — but it is fully
+explained by MNIST being learned to a higher accuracy and so having more points to lose. On the
+ceiling-controlled metric the gap is **0.2pp against a 3.3pp seed spread: a clean null.**
+**Retract the "easier-learned classes forget faster" claim and the Bjork/desirable-difficulties
+connection built on it.**
+
+What replaces it (smaller, real): **forgetting in EP is PROPORTIONAL, not selective** — it scales
+down whatever was learned by a roughly constant fraction rather than preferentially destroying easy
+or hard classes. This retroactively explains the scheduler nulls (Exp 18–21): there is no
+difficulty-based heterogeneity for a which-to-replay scheduler to exploit, which is what Exp 18 hit
+and I misdiagnosed as merely "wrong regime".
+
+## Forgetting vs confusion attractors — partial, NOT one mechanism (Exp 26, 2026-07-27)
+
+Tested whether catastrophic forgetting reuses the directional attractors found in Exp 23/24
+(`forgetting_attractors.py`): train MNIST → measure which classes are magnetic (error mass falling
+INTO them) → train Fashion with no replay → ask where the forgotten MNIST mass lands. 3 seeds.
+
+| | result |
+|---|---|
+| forgetting severity | MNIST 96.3% → 43.9% (−52.5 ± 5.7 pp) |
+| Q1 concentration | top-3 destinations swallow **78.0 ± 3.8%** (even spread ≈ 16%) |
+| Q2 new vs old | **82.2 ± 5.8%** of forgotten mass goes to the NEW (Fashion) classes |
+| Q3 r(destination, prior attractor strength), old classes only | **+0.67 ± 0.16** [.89 .52 .62] |
+
+**The script's printed verdict ("one shared mechanism") oversells it** — r cleared the pre-set 0.4
+bar, but I set that bar without anticipating Q2. Honest reading: the DOMINANT effect is new-class
+capture (82%), i.e. plain readout suppression, already known from Exp 16 and not a new finding. The
+r = 0.67 governs only the ~18% minority that stays among old classes. So: **secondary but genuine —
+classes that were already magnetic before the new task existed keep attracting the forgotten mass
+that doesn't go to new classes.** Confusion-asymmetry and forgetting share structure at the margin,
+they are not the same mechanism.
