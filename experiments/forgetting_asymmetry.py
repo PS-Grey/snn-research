@@ -73,20 +73,36 @@ def main():
     Xtr, ytr, Xte, yte = load_2020(args.per_class, dev)
 
     abs_e, abs_h, rel_e, rel_h = [], [], [], []
+    dropped, by_task = [], {}                                    # unlearned pairs; retention vs task age
     for seed in range(args.seeds):
         t0 = time.time()
         learn, final = run(seed, args.budget, args.buffer_k, Xtr, ytr, Xte, yte, args.hidden,
                            args.epochs, args.batch, args.beta, args.steps, dev)
-        pairs = list(range(9))                                   # drop last task (too recent to have aged)
+        # MATCHED POPULATION: a class counts only if BOTH members of its pair actually learned.
+        # (Earlier version excluded never-learned classes from the relative metric but not the
+        # absolute one, biasing absolute hard-class forgetting downward — classes that never
+        # learned were recorded as forgetting nothing.)
+        pairs = [c for c in range(9) if learn[c] > 0.05 and learn[c+10] > 0.05]
+        dropped.append(9 - len(pairs))
+        if not pairs:
+            continue
         ae = st.mean(learn[c] - final[c] for c in pairs)
         ah = st.mean(learn[c+10] - final[c+10] for c in pairs)
-        re = st.mean(final[c] / learn[c] for c in pairs if learn[c] > 0.05)
-        rh = st.mean(final[c+10] / learn[c+10] for c in pairs if learn[c+10] > 0.05)
+        re = st.mean(final[c] / learn[c] for c in pairs)
+        rh = st.mean(final[c+10] / learn[c+10] for c in pairs)
         abs_e.append(ae); abs_h.append(ah); rel_e.append(re); rel_h.append(rh)
+        # recency: is the retained fraction constant, or does it decay with task age?
+        for c in pairs:
+            by_task.setdefault(c, []).append(st.mean([final[c]/learn[c], final[c+10]/learn[c+10]]))
         print(f"  seed {seed}: abs easy {ae*100:5.1f}pp hard {ah*100:5.1f}pp | "
-              f"rel-retention easy {re*100:5.1f}% hard {rh*100:5.1f}%  ({time.time()-t0:.0f}s)")
+              f"rel-retention easy {re*100:5.1f}% hard {rh*100:5.1f}%  "
+              f"(dropped {dropped[-1]} unlearned pairs, {time.time()-t0:.0f}s)")
 
     def ms(v): return f"{st.mean(v)*100:5.1f} +/- {(st.pstdev(v)*100 if len(v)>1 else 0):.1f}"
+    print(f"\n(matched population: dropped {st.mean(dropped):.1f}/9 pairs per seed where a class never learned)")
+    print(f"\nRECENCY — retained fraction by task age (task 0 = oldest, most erosion):")
+    print("   task:      " + " ".join(f"{c:5d}" for c in sorted(by_task)))
+    print("   retained:  " + " ".join(f"{st.mean(by_task[c])*100:4.0f}%" for c in sorted(by_task)))
     print(f"\nABSOLUTE forgetting (pp, ceiling-CONFOUNDED):")
     print(f"   easy/MNIST   {ms(abs_e)}      hard/Fashion {ms(abs_h)}")
     print(f"RELATIVE retention (% of learned kept, ceiling-CONTROLLED — the honest metric):")

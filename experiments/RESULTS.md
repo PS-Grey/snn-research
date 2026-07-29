@@ -737,3 +737,33 @@ r = 0.67 governs only the ~18% minority that stays among old classes. So: **seco
 classes that were already magnetic before the new task existed keep attracting the forgotten mass
 that doesn't go to new classes.** Confusion-asymmetry and forgetting share structure at the margin,
 they are not the same mechanism.
+
+### Correction to Exp 25 — matched population reverses the absolute result (2026-07-29)
+
+Re-reading `forgetting_asymmetry.py` exposed a population mismatch: the *relative* metric excluded
+never-learned classes (`learn > 0.05`) but the *absolute* metric did not, so a class that never
+learned was recorded as forgetting nothing. Fashion classes fail to learn more often (**3.2 of 9
+pairs per seed**), biasing absolute hard-class forgetting downward. Rerun with both metrics on a
+matched population, plus a recency breakdown:
+
+| metric | easy/MNIST | hard/Fashion | vs yesterday |
+|---|---|---|---|
+| absolute forgetting (pp) | 32.2 ± 1.6 | **36.4 ± 2.2** | **REVERSED** (was 33.0 vs 22.5) |
+| relative retention (%) | 67.7 ± 1.6 | 63.4 ± 2.3 | gap opens 0.2 → 4.2pp |
+
+**Two corrections.** (1) The claim that the absolute gap "reproduces cleanly across 5 seeds" was
+WRONG — it was the unlearned-class artefact; fixed, the absolute result flips to hard-forgets-more.
+(2) The script's printed "NO robust difference" is a preset threshold missing by a hair (4.2 vs 4.6
+required); **4 of 5 seeds show hard retaining less, paired across seeds p ≈ 0.06 — marginal and
+suggestive, not a clean null.** Binary verdicts from eyeballed thresholds are retired.
+
+**Net effect on the claim.** The core result stands: forgetting is **multiplicative** — it removes a
+*share* of what was learned, not a fixed number of points. But the stronger form ("the share is
+identical regardless of difficulty") is weakened: there may be a ~4pp difficulty effect, pointing
+**opposite** to Exp 19. "Easy forgets faster" is dead twice over — as a ceiling artefact, and now the
+corrected data leans the other way. The scheduler-null explanation survives regardless: 4pp is
+trivial beside the 23pp seed variance of that regime.
+
+**Recency (new): no geometric decay.** Retained fraction by task age (0 = oldest):
+`68 87 55 55 59 44 71 70 81` — flat and noisy, no trend. Forgetting does **not** compound per
+intervening task; the retained fraction is dominated by class identity and RNG, not age.
