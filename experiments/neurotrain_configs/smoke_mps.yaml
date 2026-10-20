@@ -1,0 +1,15 @@
+# Smoke test: one epoch of a local three-factor rule (e-TLP) on MNIST, Apple GPU.
+etlp_fc_mnist_smoke:
+  trainer:
+    name: etlp
+  model:
+    name: fc_snn
+  dataset:
+    name: MNIST
+    data_root: ../../data
+    num_workers: 0
+  runtime:
+    epochs: 1
+    device: mps
+    seed: 0
+    neurobench: false

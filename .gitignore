@@ -20,3 +20,6 @@ __pycache__/
 # local project instructions (references private sibling projects; keep out of public repo)
 CLAUDE.md
 *.log
+
+# third-party sources fetched by lib/README.md, not vendored
+lib/neurotrain/
